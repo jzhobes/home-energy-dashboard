@@ -38,7 +38,7 @@ npm start
 ```
 
 This will fetch the latest bills from Google Drive, parse them, and generate a local HTML report:
-`energyDashboard.html`
+`index.html`
 
 > **Note:** The first run will take some time to download and parse all PDFs. Subsequent runs will be instant thanks to the local cache (`.bill_cache.json`).
 

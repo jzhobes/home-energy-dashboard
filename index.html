@@ -1,135 +1,4 @@
-import 'dotenv/config';
-import { google } from 'googleapis';
-import fs from 'fs';
-import path from 'path';
-import DriveClient from './DriveClient.js';
-import BillParser from './BillParser.js';
-import CacheManager from './CacheManager.js';
-import EnergyAnalyzer from './EnergyAnalyzer.js';
 
-async function main() {
-    console.log('🚀 Starting Bill Analysis...');
-
-    // 1. Auth
-    const { GMAIL_OAUTH_CREDENTIALS } = process.env;
-    if (!GMAIL_OAUTH_CREDENTIALS) {
-        throw new Error('❌ GMAIL_OAUTH_CREDENTIALS not found');
-    }
-    const { client_id, client_secret, refresh_token } = JSON.parse(GMAIL_OAUTH_CREDENTIALS);
-    const auth = new google.auth.OAuth2(client_id, client_secret);
-    auth.setCredentials({ refresh_token });
-
-    const drive = new DriveClient(auth);
-    const parser = new BillParser();
-    const cache = new CacheManager();
-
-    // 2. Fetch Files
-    console.log('📂 Fetching file lists...');
-    const {
-        GOOGLE_DRIVE_FOLDER_ELECTRIC,
-        GOOGLE_DRIVE_FOLDER_SOLAR,
-        GOOGLE_DRIVE_FOLDER_GAS
-    } = process.env;
-
-    if (!GOOGLE_DRIVE_FOLDER_ELECTRIC || !GOOGLE_DRIVE_FOLDER_SOLAR || !GOOGLE_DRIVE_FOLDER_GAS) {
-        throw new Error('❌ Missing GOOGLE_DRIVE_FOLDER_* environment variables');
-    }
-
-    const ngFiles = await drive.listFiles(GOOGLE_DRIVE_FOLDER_ELECTRIC);
-    const sunrunFiles = await drive.listFiles(GOOGLE_DRIVE_FOLDER_SOLAR);
-    const gasFiles = await drive.listFiles(GOOGLE_DRIVE_FOLDER_GAS);
-
-    console.log(`📄 Found ${ngFiles.length} National Grid bills in ${GOOGLE_DRIVE_FOLDER_ELECTRIC}`);
-    console.log(`📄 Found ${sunrunFiles.length} Sunrun bills in ${GOOGLE_DRIVE_FOLDER_SOLAR}`);
-    console.log(`📄 Found ${gasFiles.length} Eversource Gas bills in ${GOOGLE_DRIVE_FOLDER_GAS}`);
-
-    // 3. Parse Data
-    const ngData = [];
-    const sunrunData = [];
-    const gasData = [];
-
-    // Helper to process files with cache
-    const processFiles = async (files, type, targetArray) => {
-        console.log(`Processing ${type} Bills...`);
-        let newCount = 0;
-        let cacheCount = 0;
-
-        for (const file of files) {
-            // Check Cache
-            const cached = cache.get(file.id);
-            if (cached) {
-                targetArray.push(cached);
-                cacheCount++;
-                continue;
-            }
-
-            // Not in cache, fetch and parse
-            process.stdout.write('.');
-            try {
-                const buffer = await drive.getFile(file.id);
-                const data = await parser.parse(type, buffer);
-                if (data) {
-                    targetArray.push(data);
-                    cache.set(file.id, data); // Save to cache
-                    newCount++;
-                }
-            } catch (e) {
-                console.error(`\nFailed to process ${file.name}: ${e.message}`);
-            }
-        }
-        console.log(`\n  ✅ ${cacheCount} cached, ${newCount} new.`);
-    };
-
-    await processFiles(ngFiles, 'NationalGrid', ngData);
-    await processFiles(sunrunFiles, 'Sunrun', sunrunData);
-    await processFiles(gasFiles, 'Eversource', gasData);
-
-    // Save cache at the end
-    cache.save();
-
-    // 4. Aggregate Data
-    // 4. Aggregate Data
-    const analyzer = new EnergyAnalyzer();
-
-    // Feed data into analyzer
-    ngData.forEach(d => analyzer.addBill(d));
-    sunrunData.forEach(d => analyzer.addBill(d));
-    gasData.forEach(d => analyzer.addBill(d));
-
-    // Get calculated metrics
-    const chartData = analyzer.getMonthlyAnalysis();
-
-    // 5. Generate HTML Report
-    const html = generateHtmlReport(chartData);
-    const reportPath = path.join(process.cwd(), 'index.html');
-    fs.writeFileSync(reportPath, html);
-
-    console.log(`✅ Analysis complete! Report saved to: ${reportPath}`);
-}
-
-function generateHtmlReport(data) {
-    const labels = data.map(d => d.month);
-
-    // Prepare Datasets
-    const ngCosts = data.map(d => d.ngCost);
-    const sunrunCosts = data.map(d => d.sunrunCost);
-    const totalCosts = data.map(d => d.totalCost);
-
-    const ngUsage = data.map(d => d.ngUsage);
-    const totalProduction = data.map(d => d.totalProduction);
-    const trueConsumption = data.map(d => d.trueConsumption);
-    const selfUse = data.map(d => d.selfUse);
-    const ngExport = data.map(d => d.ngExport);
-
-    const ngCredit = data.map(d => d.ngCredit);
-    const effectiveRate = data.map(d => d.effectiveRate);
-
-    // Gas Data
-    const gasCost = data.map(d => d.gasCost);
-    const gasKwh = data.map(d => d.gasKwh);
-    const totalEnergyCosts = data.map(d => d.totalEnergyCost);
-
-    return `
 <!DOCTYPE html>
 <html>
 <head>
@@ -232,7 +101,7 @@ function generateHtmlReport(data) {
     </div>
 
     <script>
-        const labels = ${JSON.stringify(labels)};
+        const labels = ["2021-04","2021-05","2021-06","2021-07","2021-08","2021-09","2021-10","2021-11","2021-12","2022-01","2022-03","2022-04","2022-05","2022-06","2022-07","2022-08","2022-09","2022-10","2022-11","2022-12","2023-01","2023-02","2023-03","2023-04","2023-05","2023-06","2023-07","2023-08","2023-09","2023-10","2023-11","2023-12","2024-01","2024-02","2024-03","2024-04","2024-05","2024-06","2024-07","2024-08","2024-09","2024-10","2024-11","2024-12","2025-01","2025-02","2025-03","2025-04","2025-05","2025-06","2025-07","2025-08","2025-09","2025-10","2025-11"];
         
         // Common Options
         const commonOptions = {
@@ -304,25 +173,25 @@ function generateHtmlReport(data) {
                 datasets: [
                     {
                         label: 'Gas Bill',
-                        data: ${JSON.stringify(gasCost)},
+                        data: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,388.32,248.74,107.45,62.33,51.09,44.08,42.7,48.25,62.1,256.07,302.11,439.29,253.41,35.98,39.37,36.63,65.64,96.06,27.19,32.65,27.19,35.82,47.75,56.64,57.07,52.39,54.5,41.94,41.94,44.23,46.53,60.25,55.01,0],
                         backgroundColor: '#e74c3c',
                         stack: 'Stack 0'
                     },
                     {
                         label: 'Electric Bill',
-                        data: ${JSON.stringify(ngCosts)},
+                        data: [205.71,134.52,200.24,317.52,231.48,262.76,170.06,202.24,264.24,395.86,229.9,20.38,0,0,0,116.73,0,0,16.8,57.98,152.13,0,0,0,0,0,0,0,0,0,0,44.74,55.6,73.74,404.75,0,0,0,37.89,125.29,79.21,120.33,168.16,528.25,931.59,859.55,347.19,26,0,0,34.78,16.43,51.63,121.27,124.85],
                         backgroundColor: '#3498db',
                         stack: 'Stack 0'
                     },
                     {
                         label: 'Solar Bill',
-                        data: ${JSON.stringify(sunrunCosts)},
+                        data: [0,0,0,0,0,0,0,0,0,0,0,140.68,140.68,140.68,140.68,140.68,140.68,140.68,140.68,140.68,140.68,140.68,140.68,144.76,144.76,144.76,144.76,144.76,144.76,144.76,144.76,144.76,144.76,144.76,144.76,148.96,148.96,148.96,148.96,148.96,148.96,148.96,148.96,148.96,148.96,148.96,148.96,153.28,153.28,153.28,153.28,153.28,153.28,153.28,153.28],
                         backgroundColor: '#f1c40f',
                         stack: 'Stack 0'
                     },
                     {
                         label: 'Total Spend',
-                        data: ${JSON.stringify(totalEnergyCosts)},
+                        data: [205.71,134.52,200.24,317.52,231.48,262.76,170.06,202.24,264.24,395.86,229.9,161.06,140.68,140.68,140.68,257.41,140.68,140.68,157.48000000000002,198.66,292.81,529,389.42,252.20999999999998,207.08999999999997,195.85,188.83999999999997,187.45999999999998,193.01,206.85999999999999,400.83,491.61,639.65,471.90999999999997,585.49,188.33,185.59,214.60000000000002,282.91,301.44,260.82,296.48,352.94,724.96,1137.19,1065.58,548.54,233.78,195.22,195.22,232.29,216.24,265.15999999999997,329.56,278.13],
                         type: 'line',
                         borderColor: '#2c3e50',
                         borderWidth: 2,
@@ -342,13 +211,13 @@ function generateHtmlReport(data) {
                 datasets: [
                     {
                         label: 'Gas (kWh equiv)',
-                        data: ${JSON.stringify(gasKwh)},
+                        data: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,5332.6,4189.900000000001,1699.4,1025.5,820.4,673.9,644.6,761.8000000000001,1054.8,4043.4,4775.900000000001,7325,4160.6,410.2,468.8,498.1,351.6,380.90000000000003,322.3,439.5,322.3,322.3,468.8,586,556.7,556.7,586,380.90000000000003,380.90000000000003,410.2,439.5,615.3000000000001,586,644.6],
                         backgroundColor: '#e74c3c',
                         stack: 'Stack 0'
                     },
                     {
                         label: 'Electric Consumed',
-                        data: ${JSON.stringify(trueConsumption)},
+                        data: [751,512,833,1322,955,1088,694,766,898,1331,781,721,621,498,855,1774,880,513,547,437,915,407,465,376,319,332,936,983,878,534,425,500,488,504,2548,496,279,475,1651,1503,1324,1006,1078,1924,3054,2830,2193,1020,952,1137,1427,1427,1266,1255,940],
                         backgroundColor: '#3498db',
                         stack: 'Stack 0'
                     }
@@ -375,7 +244,7 @@ function generateHtmlReport(data) {
                     datasets: [
                         {
                             label: 'Imported from Grid',
-                            data: ${JSON.stringify(ngUsage)},
+                            data: [751,512,833,1322,955,1088,694,766,898,1331,781,0,0,0,0,410,0,0,23,105,286,0,0,0,0,0,0,0,0,0,0,99,134,191,1104,0,0,0,57,318,193,324,461,1509,2692,2530,1471,280,0,0,92,13,164,455,499],
                             backgroundColor: isAreaChart ? 'rgba(52, 152, 219, 0.5)' : '#3498db',
                             borderColor: '#3498db',
                             fill: fill,
@@ -383,7 +252,7 @@ function generateHtmlReport(data) {
                         },
                         {
                             label: 'Solar Self-Use',
-                            data: ${JSON.stringify(selfUse)},
+                            data: [0,0,0,0,0,0,0,0,0,0,0,721,621,498,855,1364,880,513,524,332,629,407,465,376,319,332,936,983,878,534,425,401,354,313,1444,496,279,475,1594,1185,1131,682,617,415,362,300,722,740,952,1137,1335,1414,1102,800,441],
                             backgroundColor: isAreaChart ? 'rgba(46, 204, 113, 0.5)' : '#2ecc71',
                             borderColor: '#2ecc71',
                             fill: fill,
@@ -391,7 +260,7 @@ function generateHtmlReport(data) {
                         },
                         {
                             label: 'Total Consumption',
-                            data: ${JSON.stringify(trueConsumption)},
+                            data: [751,512,833,1322,955,1088,694,766,898,1331,781,721,621,498,855,1774,880,513,547,437,915,407,465,376,319,332,936,983,878,534,425,500,488,504,2548,496,279,475,1651,1503,1324,1006,1078,1924,3054,2830,2193,1020,952,1137,1427,1427,1266,1255,940],
                             type: 'line',
                             borderColor: '#34495e',
                             borderWidth: 2,
@@ -424,7 +293,7 @@ function generateHtmlReport(data) {
                 datasets: [
                     {
                         label: 'Solar Production',
-                        data: ${JSON.stringify(totalProduction)},
+                        data: [0,0,0,0,0,0,0,0,0,0,0,760,1223,1528,1488,1364,961,579,524,332,629,407,547,1010,977,1538,1249,1177,970,983,425,401,354,313,1444,1188,279,1439,1594,1185,1131,682,617,415,362,300,722,740,1374,1224,1335,1414,1102,800,441],
                         borderColor: '#f1c40f',
                         backgroundColor: 'rgba(241, 196, 15, 0.1)',
                         fill: true,
@@ -432,7 +301,7 @@ function generateHtmlReport(data) {
                     },
                     {
                         label: 'True Consumption',
-                        data: ${JSON.stringify(trueConsumption)},
+                        data: [751,512,833,1322,955,1088,694,766,898,1331,781,721,621,498,855,1774,880,513,547,437,915,407,465,376,319,332,936,983,878,534,425,500,488,504,2548,496,279,475,1651,1503,1324,1006,1078,1924,3054,2830,2193,1020,952,1137,1427,1427,1266,1255,940],
                         borderColor: '#34495e',
                         borderWidth: 2,
                         borderDash: [5, 5],
@@ -452,7 +321,7 @@ function generateHtmlReport(data) {
                 datasets: [
                     {
                         label: 'Credit Balance ($)',
-                        data: ${JSON.stringify(ngCredit)},
+                        data: [0,0,0,0,0,0,0,0,0,0,0,0,139.65,366.18,500.66,383.93,392.29,398.77,381.97,323.99,171.86,0,200.36,481.51,718.34,1023.37,1091.61,1125.33,1133.65,1236,0,1191.26,1135.66,1061.92,762.11,865.96,0,1161.3,1123.41,998.12,918.91,798.58,630.42,102.17,0,0,512.36,486.36,598.66,612.27,577.49,561.06,509.43,388.16,263.31],
                         borderColor: '#9b59b6',
                         backgroundColor: 'rgba(155, 89, 182, 0.1)',
                         fill: true,
@@ -471,19 +340,19 @@ function generateHtmlReport(data) {
                 datasets: [
                     {
                         label: 'National Grid',
-                        data: ${JSON.stringify(ngCosts)},
+                        data: [205.71,134.52,200.24,317.52,231.48,262.76,170.06,202.24,264.24,395.86,229.9,20.38,0,0,0,116.73,0,0,16.8,57.98,152.13,0,0,0,0,0,0,0,0,0,0,44.74,55.6,73.74,404.75,0,0,0,37.89,125.29,79.21,120.33,168.16,528.25,931.59,859.55,347.19,26,0,0,34.78,16.43,51.63,121.27,124.85],
                         backgroundColor: '#3498db',
                         stack: 'Stack 0'
                     },
                     {
                         label: 'Sunrun',
-                        data: ${JSON.stringify(sunrunCosts)},
+                        data: [0,0,0,0,0,0,0,0,0,0,0,140.68,140.68,140.68,140.68,140.68,140.68,140.68,140.68,140.68,140.68,140.68,140.68,144.76,144.76,144.76,144.76,144.76,144.76,144.76,144.76,144.76,144.76,144.76,144.76,148.96,148.96,148.96,148.96,148.96,148.96,148.96,148.96,148.96,148.96,148.96,148.96,153.28,153.28,153.28,153.28,153.28,153.28,153.28,153.28],
                         backgroundColor: '#f1c40f',
                         stack: 'Stack 0'
                     },
                     {
                         label: 'Total',
-                        data: ${JSON.stringify(totalCosts)},
+                        data: [205.71,134.52,200.24,317.52,231.48,262.76,170.06,202.24,264.24,395.86,229.9,161.06,140.68,140.68,140.68,257.41,140.68,140.68,157.48000000000002,198.66,292.81,140.68,140.68,144.76,144.76,144.76,144.76,144.76,144.76,144.76,144.76,189.5,200.35999999999999,218.5,549.51,148.96,148.96,148.96,186.85000000000002,274.25,228.17000000000002,269.29,317.12,677.21,1080.55,1008.51,496.15,179.28,153.28,153.28,188.06,169.71,204.91,274.55,278.13],
                         type: 'line',
                         borderColor: '#e74c3c',
                         borderWidth: 2,
@@ -502,7 +371,7 @@ function generateHtmlReport(data) {
                 datasets: [
                     {
                         label: 'Effective $/kWh',
-                        data: ${JSON.stringify(effectiveRate)},
+                        data: [0.27391478029294275,0.262734375,0.2403841536614646,0.24018154311649015,0.2423874345549738,0.24150735294117645,0.24504322766570605,0.26402088772845955,0.2942538975501114,0.29741547708489857,0.2943661971830986,0.22338418862690707,0.2265378421900161,0.28248995983935743,0.16453801169590643,0.14510146561443069,0.15986363636363637,0.2742300194931774,0.2878976234003657,0.4545995423340961,0.32001092896174865,0.3456511056511057,0.30253763440860215,0.38499999999999995,0.45379310344827584,0.4360240963855421,0.15465811965811965,0.14726347914547303,0.164874715261959,0.2710861423220974,0.34061176470588234,0.379,0.41057377049180327,0.43353174603174605,0.21566326530612245,0.3003225806451613,0.5339068100358423,0.3136,0.11317383403997579,0.18246839654025282,0.17233383685800605,0.26768389662027836,0.2941743970315399,0.3519802494802495,0.35381466928618205,0.35636395759717315,0.22624259005927952,0.17576470588235293,0.16100840336134453,0.1348109058927001,0.13178696566222844,0.11892782060266294,0.1618562401263823,0.21876494023904383,0.29588297872340424],
                         borderColor: '#27ae60',
                         backgroundColor: 'rgba(39, 174, 96, 0.1)',
                         fill: true,
@@ -529,13 +398,13 @@ function generateHtmlReport(data) {
                 datasets: [
                     {
                         label: 'Used at Home',
-                        data: ${JSON.stringify(selfUse)},
+                        data: [0,0,0,0,0,0,0,0,0,0,0,721,621,498,855,1364,880,513,524,332,629,407,465,376,319,332,936,983,878,534,425,401,354,313,1444,496,279,475,1594,1185,1131,682,617,415,362,300,722,740,952,1137,1335,1414,1102,800,441],
                         backgroundColor: '#2ecc71',
                         stack: 'Stack 0'
                     },
                     {
                         label: 'Sent to Grid',
-                        data: ${JSON.stringify(ngExport)},
+                        data: [0,0,0,0,0,0,0,0,0,0,0,39,602,1030,633,0,81,66,0,0,0,0,82,634,658,1206,313,194,92,449,0,0,0,0,0,692,0,964,0,0,0,0,0,0,0,0,0,0,422,87,0,0,0,0,0],
                         backgroundColor: '#95a5a6',
                         stack: 'Stack 0'
                     }
@@ -546,7 +415,4 @@ function generateHtmlReport(data) {
     </script>
 </body>
 </html>
-    `;
-}
-
-main().catch(console.error);
+    
