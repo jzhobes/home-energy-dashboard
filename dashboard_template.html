@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Total Home Energy Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background: #f4f7f6; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { text-align: center; color: #2c3e50; margin-bottom: 30px; }
+        .controls { text-align: center; margin-bottom: 20px; }
+        select { padding: 8px 16px; font-size: 1em; border-radius: 4px; border: 1px solid #bdc3c7; }
+        .card { background: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); padding: 20px; margin-bottom: 30px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 20px; }
+        h2 { color: #34495e; font-size: 1.2em; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; margin-top: 0; }
+        .chart-container { position: relative; height: 300px; width: 100%; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Total Home Energy Dashboard</h1>
+
+        <div class="controls">
+            <label for="yearSelect"><strong>Filter by Year: </strong></label>
+            <select id="yearSelect">
+                <option value="all">All Time</option>
+            </select>
+        </div>
+
+        <!-- 1. Total Energy Cost (Gas + Electric + Solar) -->
+        <div class="card">
+            <h2>💰 Total Energy Wallet (Where is the money going?)</h2>
+            <div class="chart-container">
+                <canvas id="totalCostChart"></canvas>
+            </div>
+            <p style="text-align: center; font-size: 0.9em; color: #666; margin-top: 10px;">
+                Breakdown of total monthly spending across Gas, Electric, and Solar.
+            </p>
+        </div>
+
+        <!-- 2. Total Energy Consumption (kWh Equivalent) -->
+        <div class="card">
+            <h2>⚡ Total Energy Consumed (Gas vs Electric)</h2>
+            <div class="chart-container">
+                <canvas id="totalEnergyChart"></canvas>
+            </div>
+            <p style="text-align: center; font-size: 0.9em; color: #666; margin-top: 10px;">
+                Comparison of total energy usage from Gas vs. Electricity. (* Gas converted to kWh: 1 Therm = 29.3 kWh)
+            </p>
+        </div>
+
+        <!-- 3. Total Home Consumption (Electric Only) -->
+        <div class="card">
+            <h2>🏠 Home Electric Consumption</h2>
+            <div style="text-align: right; margin-bottom: 10px;">
+                <button id="toggleConsumptionBtn" style="padding: 8px 16px; background: #34495e; color: white; border: none; border-radius: 4px; cursor: pointer;">Switch to Area Chart</button>
+            </div>
+            <div class="chart-container">
+                <canvas id="consumptionChart"></canvas>
+            </div>
+            <p style="text-align: center; font-size: 0.9em; color: #666;">
+                <strong>Blue:</strong> Power bought from Grid. <strong>Green:</strong> Solar power used directly. 
+                <br>The total height is your real home usage.
+            </p>
+        </div>
+
+        <!-- 2. Net Zero Tracker -->
+        <div class="card">
+            <h2>⚖️ Net Zero Tracker</h2>
+            <div class="chart-container">
+                <canvas id="netZeroChart"></canvas>
+            </div>
+            <p style="text-align: center; font-size: 0.9em; color: #666; margin-top: 10px;">
+                Solar Production (Yellow) vs. True Consumption (Blue Line). If Yellow > Blue, you are Net Zero.
+            </p>
+        </div>
+
+        <!-- 3. Credit Bank -->
+        <div class="card">
+            <h2>💰 National Grid Credit Bank</h2>
+            <div class="chart-container">
+                <canvas id="creditChart"></canvas>
+            </div>
+            <p style="text-align: center; font-size: 0.9em; color: #666; margin-top: 10px;">
+                Rolling balance of net metering credits ($) accumulated with National Grid.
+            </p>
+        </div>
+
+        <!-- 4. Monthly Electric Costs (Grid + Solar) -->
+        <div class="card">
+            <h2>💵 Monthly Electric Costs (Grid + Solar)</h2>
+            <div class="chart-container">
+                <canvas id="costChart"></canvas>
+            </div>
+            <p style="text-align: center; font-size: 0.9em; color: #666; margin-top: 10px;">
+                Combined cost of National Grid and Sunrun bills.
+            </p>
+        </div>
+
+        <!-- 5. Effective Rate -->
+        <div class="card">
+            <h2>📉 Effective Cost per kWh</h2>
+            <div class="chart-container">
+                <canvas id="rateChart"></canvas>
+            </div>
+            <p style="text-align: center; font-size: 0.9em; color: #666; margin-top: 10px;">
+                The true 'blended' cost per kWh (Total Electric Cost / True Consumption).
+            </p>
+        </div>
+
+        <!-- 5. Solar Utilization -->
+        <div class="card">
+            <h2>☀️ Solar Utilization (Where did the power go?)</h2>
+            <div class="chart-container">
+                <canvas id="utilizationChart"></canvas>
+            </div>
+            <p style="text-align: center; font-size: 0.9em; color: #666; margin-top: 10px;">
+                How your solar generation was used: Consumed at home (Green) vs. Exported to grid (Grey).
+            </p>
+        </div>
+
+    </div>
+
+    <script>
+        const allData = "{{CHART_DATA}}";
+        let currentData = [...allData];
+        const charts = {};
+        let isAreaChart = false;
+
+        // Common Options
+        const commonOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+        };
+
+        const currencyOptions = {
+            ...commonOptions,
+            scales: {
+                y: {
+                    ticks: {
+                        callback: function(value) { return '$' + value; }
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.parsed.y !== null) {
+                                label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed.y);
+                            }
+                            return label;
+                        }
+                    }
+                }
+            }
+        };
+
+        const kwhOptions = {
+            ...commonOptions,
+            scales: {
+                y: {
+                    ticks: {
+                        callback: function(value) { return value + ' kWh'; }
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.parsed.y !== null) {
+                                label += context.parsed.y + ' kWh';
+                            }
+                            return label;
+                        }
+                    }
+                }
+            }
+        };
+
+        function getChartData(data) {
+            return {
+                labels: data.map(d => d.month),
+                ngCosts: data.map(d => d.ngCost),
+                sunrunCosts: data.map(d => d.sunrunCost),
+                totalCosts: data.map(d => d.totalCost),
+                ngUsage: data.map(d => d.ngUsage),
+                totalProduction: data.map(d => d.totalProduction),
+                trueConsumption: data.map(d => d.trueConsumption),
+                selfUse: data.map(d => d.selfUse),
+                ngExport: data.map(d => d.ngExport),
+                ngCredit: data.map(d => d.ngCredit),
+                effectiveRate: data.map(d => d.effectiveRate),
+                gasCost: data.map(d => d.gasCost),
+                gasKwh: data.map(d => d.gasKwh),
+                totalEnergyCosts: data.map(d => d.totalEnergyCost)
+            };
+        }
+
+        function renderCharts() {
+            const d = getChartData(currentData);
+
+            // 1. Total Cost Chart
+            if (charts.totalCost) charts.totalCost.destroy();
+            charts.totalCost = new Chart(document.getElementById('totalCostChart'), {
+                type: 'bar',
+                data: {
+                    labels: d.labels,
+                    datasets: [
+                        { label: 'Gas Bill', data: d.gasCost, backgroundColor: '#e74c3c', stack: 'Stack 0' },
+                        { label: 'Electric Bill', data: d.ngCosts, backgroundColor: '#3498db', stack: 'Stack 0' },
+                        { label: 'Solar Bill', data: d.sunrunCosts, backgroundColor: '#f1c40f', stack: 'Stack 0' },
+                        { label: 'Total Spend', data: d.totalEnergyCosts, type: 'line', borderColor: '#2c3e50', borderWidth: 2, fill: false, tension: 0.1 }
+                    ]
+                },
+                options: currencyOptions
+            });
+
+            // 2. Total Energy Chart
+            if (charts.totalEnergy) charts.totalEnergy.destroy();
+            charts.totalEnergy = new Chart(document.getElementById('totalEnergyChart'), {
+                type: 'bar',
+                data: {
+                    labels: d.labels,
+                    datasets: [
+                        { label: 'Gas (kWh equiv)', data: d.gasKwh, backgroundColor: '#e74c3c', stack: 'Stack 0' },
+                        { label: 'Electric Consumed', data: d.trueConsumption, backgroundColor: '#3498db', stack: 'Stack 0' }
+                    ]
+                },
+                options: kwhOptions
+            });
+
+            // 3. Consumption Chart (Toggleable)
+            renderConsumptionChart(d);
+
+            // 4. Net Zero Chart
+            if (charts.netZero) charts.netZero.destroy();
+            charts.netZero = new Chart(document.getElementById('netZeroChart'), {
+                type: 'line',
+                data: {
+                    labels: d.labels,
+                    datasets: [
+                        { label: 'Solar Production', data: d.totalProduction, borderColor: '#f1c40f', backgroundColor: 'rgba(241, 196, 15, 0.1)', fill: true, tension: 0.3 },
+                        { label: 'True Consumption', data: d.trueConsumption, borderColor: '#34495e', borderWidth: 2, borderDash: [5, 5], fill: false, tension: 0.3 }
+                    ]
+                },
+                options: kwhOptions
+            });
+
+            // 5. Credit Chart
+            if (charts.credit) charts.credit.destroy();
+            charts.credit = new Chart(document.getElementById('creditChart'), {
+                type: 'line',
+                data: {
+                    labels: d.labels,
+                    datasets: [
+                        { label: 'Credit Balance ($)', data: d.ngCredit, borderColor: '#9b59b6', backgroundColor: 'rgba(155, 89, 182, 0.1)', fill: true, tension: 0.3 }
+                    ]
+                },
+                options: currencyOptions
+            });
+
+            // 6. Cost Chart
+            if (charts.cost) charts.cost.destroy();
+            charts.cost = new Chart(document.getElementById('costChart'), {
+                type: 'bar',
+                data: {
+                    labels: d.labels,
+                    datasets: [
+                        { label: 'National Grid', data: d.ngCosts, backgroundColor: '#3498db', stack: 'Stack 0' },
+                        { label: 'Sunrun', data: d.sunrunCosts, backgroundColor: '#f1c40f', stack: 'Stack 0' },
+                        { label: 'Total Cost', data: d.totalCosts, type: 'line', borderColor: '#e74c3c', borderWidth: 2, fill: false }
+                    ]
+                },
+                options: currencyOptions
+            });
+
+            // 7. Rate Chart
+            if (charts.rate) charts.rate.destroy();
+            charts.rate = new Chart(document.getElementById('rateChart'), {
+                type: 'line',
+                data: {
+                    labels: d.labels,
+                    datasets: [
+                        { label: 'Effective $/kWh', data: d.effectiveRate, borderColor: '#27ae60', backgroundColor: 'rgba(39, 174, 96, 0.1)', fill: true, tension: 0.3 }
+                    ]
+                },
+                options: {
+                    ...commonOptions,
+                    scales: {
+                        y: { beginAtZero: true, title: { display: true, text: '$/kWh' } }
+                    }
+                }
+            });
+
+            // 8. Utilization Chart
+            if (charts.utilization) charts.utilization.destroy();
+            charts.utilization = new Chart(document.getElementById('utilizationChart'), {
+                type: 'bar',
+                data: {
+                    labels: d.labels,
+                    datasets: [
+                        { label: 'Used at Home', data: d.selfUse, backgroundColor: '#2ecc71', stack: 'Stack 0' },
+                        { label: 'Sent to Grid', data: d.ngExport, backgroundColor: '#95a5a6', stack: 'Stack 0' }
+                    ]
+                },
+                options: kwhOptions
+            });
+        }
+
+        function renderConsumptionChart(d) {
+            if (charts.consumption) charts.consumption.destroy();
+            
+            const type = isAreaChart ? 'line' : 'bar';
+            const fill = isAreaChart ? true : false;
+
+            charts.consumption = new Chart(document.getElementById('consumptionChart').getContext('2d'), {
+                type: type,
+                data: {
+                    labels: d.labels,
+                    datasets: [
+                        {
+                            label: 'Imported from Grid',
+                            data: d.ngUsage,
+                            backgroundColor: isAreaChart ? 'rgba(52, 152, 219, 0.5)' : '#3498db',
+                            borderColor: '#3498db',
+                            fill: fill,
+                            stack: 'Stack 0'
+                        },
+                        {
+                            label: 'Solar Self-Use',
+                            data: d.selfUse,
+                            backgroundColor: isAreaChart ? 'rgba(46, 204, 113, 0.5)' : '#2ecc71',
+                            borderColor: '#2ecc71',
+                            fill: fill,
+                            stack: 'Stack 0'
+                        },
+                        {
+                            label: 'Total Consumption',
+                            data: d.trueConsumption,
+                            type: 'line',
+                            borderColor: '#34495e',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            fill: false,
+                            tension: 0.3,
+                            pointRadius: 0
+                        }
+                    ]
+                },
+                options: kwhOptions
+            });
+        }
+
+        // Initialize Year Select
+        function initYearSelect() {
+            const years = [...new Set(allData.map(d => d.month.split('-')[0]))].sort().reverse();
+            const select = document.getElementById('yearSelect');
+            years.forEach(year => {
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year;
+                select.appendChild(option);
+            });
+
+            select.addEventListener('change', (e) => {
+                const year = e.target.value;
+                if (year === 'all') {
+                    currentData = [...allData];
+                } else {
+                    currentData = allData.filter(d => d.month.startsWith(year));
+                }
+                renderCharts();
+            });
+        }
+
+        // Toggle Handler
+        document.getElementById('toggleConsumptionBtn').addEventListener('click', function() {
+            isAreaChart = !isAreaChart;
+            this.textContent = isAreaChart ? 'Switch to Bar Chart' : 'Switch to Area Chart';
+            const d = getChartData(currentData);
+            renderConsumptionChart(d);
+        });
+
+        // Start
+        initYearSelect();
+        renderCharts();
+
+    </script>
+</body>
+</html>

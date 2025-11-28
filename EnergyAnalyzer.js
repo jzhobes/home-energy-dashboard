@@ -16,7 +16,7 @@ export default class EnergyAnalyzer {
         let y = parts[0];
         let m = parts[1];
         const d = parts[2];
-        if (d <= 10) {
+        if (d <= 20) {
             m--;
             if (m === 0) {
                 m = 12;
