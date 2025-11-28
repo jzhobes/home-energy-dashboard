@@ -43,6 +43,3 @@ This will fetch the latest bills from Google Drive, parse them, and generate a l
 > **Note:** The first run will take some time to download and parse all PDFs. Subsequent runs will be instant thanks to the local cache (`.bill_cache.json`).
 
 Open this file in your browser to view your dashboard.
-
-## Privacy
-The generated `energyDashboard.html` contains sensitive financial and usage data and is **ignored** by git. Do not commit it to a public repository.
