@@ -22,12 +22,12 @@ A personal dashboard to analyze and visualize household energy usage and costs, 
     Create a `.env` file in the root directory with your Google OAuth credentials:
     ```env
     GMAIL_OAUTH_CREDENTIALS={"client_id":"...","client_secret":"...","refresh_token":"..."}
+    GOOGLE_DRIVE_FOLDER_ELECTRIC=House/National Grid Bills
+    GOOGLE_DRIVE_FOLDER_SOLAR=House/Sunrun Bills
+    GOOGLE_DRIVE_FOLDER_GAS=House/Eversource Gas Bills
     ```
 4.  **Google Drive Structure:**
-    Ensure your Google Drive has the following folder structure:
-    *   `House/National Grid Bills`
-    *   `House/Sunrun Bills`
-    *   `House/Eversource Gas Bills`
+    Ensure your Google Drive has the folders matching the paths in your `.env` file.
 
 ## Usage
 
@@ -39,6 +39,8 @@ npm start
 
 This will fetch the latest bills from Google Drive, parse them, and generate a local HTML report:
 `energyDashboard.html`
+
+> **Note:** The first run will take some time to download and parse all PDFs. Subsequent runs will be instant thanks to the local cache (`.bill_cache.json`).
 
 Open this file in your browser to view your dashboard.
 

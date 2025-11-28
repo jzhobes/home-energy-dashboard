@@ -1,5 +1,4 @@
 import { google } from 'googleapis';
-import fs from 'fs';
 
 export default class DriveClient {
     constructor(auth) {
@@ -8,6 +7,7 @@ export default class DriveClient {
 
     /**
      * Lists files in a specific folder.
+     *
      * @param {string} folderName - Name of the folder to search for.
      * @returns {Promise<Array>} - List of files.
      */
@@ -41,6 +41,7 @@ export default class DriveClient {
 
     /**
      * Finds the ID of a folder by name.
+     *
      * @param {string} folderName 
      * @returns {Promise<string|null>}
      */
@@ -67,6 +68,7 @@ export default class DriveClient {
 
     /**
      * Downloads a file's content.
+     *
      * @param {string} fileId 
      * @returns {Promise<Buffer>}
      */

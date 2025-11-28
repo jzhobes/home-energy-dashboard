@@ -4,6 +4,8 @@ import fs from 'fs';
 import path from 'path';
 import DriveClient from './DriveClient.js';
 import BillParser from './BillParser.js';
+import CacheManager from './CacheManager.js';
+import EnergyAnalyzer from './EnergyAnalyzer.js';
 
 async function main() {
     console.log('🚀 Starting Bill Analysis...');
@@ -19,151 +21,83 @@ async function main() {
 
     const drive = new DriveClient(auth);
     const parser = new BillParser();
+    const cache = new CacheManager();
 
     // 2. Fetch Files
     console.log('📂 Fetching file lists...');
-    const ngFiles = await drive.listFiles('House/National Grid Bills');
-    const sunrunFiles = await drive.listFiles('House/Sunrun Bills');
-    const gasFiles = await drive.listFiles('House/Eversource Gas Bills');
+    const {
+        GOOGLE_DRIVE_FOLDER_ELECTRIC,
+        GOOGLE_DRIVE_FOLDER_SOLAR,
+        GOOGLE_DRIVE_FOLDER_GAS
+    } = process.env;
 
-    console.log(`📄 Found ${ngFiles.length} National Grid bills`);
-    console.log(`📄 Found ${sunrunFiles.length} Sunrun bills`);
-    console.log(`📄 Found ${gasFiles.length} Eversource Gas bills`);
+    if (!GOOGLE_DRIVE_FOLDER_ELECTRIC || !GOOGLE_DRIVE_FOLDER_SOLAR || !GOOGLE_DRIVE_FOLDER_GAS) {
+        throw new Error('❌ Missing GOOGLE_DRIVE_FOLDER_* environment variables');
+    }
+
+    const ngFiles = await drive.listFiles(GOOGLE_DRIVE_FOLDER_ELECTRIC);
+    const sunrunFiles = await drive.listFiles(GOOGLE_DRIVE_FOLDER_SOLAR);
+    const gasFiles = await drive.listFiles(GOOGLE_DRIVE_FOLDER_GAS);
+
+    console.log(`📄 Found ${ngFiles.length} National Grid bills in ${GOOGLE_DRIVE_FOLDER_ELECTRIC}`);
+    console.log(`📄 Found ${sunrunFiles.length} Sunrun bills in ${GOOGLE_DRIVE_FOLDER_SOLAR}`);
+    console.log(`📄 Found ${gasFiles.length} Eversource Gas bills in ${GOOGLE_DRIVE_FOLDER_GAS}`);
 
     // 3. Parse Data
     const ngData = [];
     const sunrunData = [];
     const gasData = [];
 
-    console.log('Processing National Grid Bills...');
-    for (const file of ngFiles) {
-        process.stdout.write('.');
-        try {
-            const buffer = await drive.getFile(file.id);
-            const data = await parser.parseNationalGrid(buffer);
-            if (data) ngData.push(data);
-        } catch (e) {
-            console.error(`\nFailed to process ${file.name}: ${e.message}`);
-        }
-    }
-    console.log('\n');
+    // Helper to process files with cache
+    const processFiles = async (files, type, targetArray) => {
+        console.log(`Processing ${type} Bills...`);
+        let newCount = 0;
+        let cacheCount = 0;
 
-    console.log('Processing Sunrun Bills...');
-    for (const file of sunrunFiles) {
-        process.stdout.write('.');
-        try {
-            const buffer = await drive.getFile(file.id);
-            const data = await parser.parseSunrun(buffer);
-            if (data) sunrunData.push(data);
-        } catch (e) {
-            console.error(`\nFailed to process ${file.name}: ${e.message}`);
-        }
-    }
-    console.log('\n');
+        for (const file of files) {
+            // Check Cache
+            const cached = cache.get(file.id);
+            if (cached) {
+                targetArray.push(cached);
+                cacheCount++;
+                continue;
+            }
 
-    console.log('Processing Eversource Gas Bills...');
-    for (const file of gasFiles) {
-        process.stdout.write('.');
-        try {
-            const buffer = await drive.getFile(file.id);
-            const data = await parser.parseEversource(buffer);
-            if (data) gasData.push(data);
-        } catch (e) {
-            console.error(`\nFailed to process ${file.name}: ${e.message}`);
+            // Not in cache, fetch and parse
+            process.stdout.write('.');
+            try {
+                const buffer = await drive.getFile(file.id);
+                const data = await parser.parse(type, buffer);
+                if (data) {
+                    targetArray.push(data);
+                    cache.set(file.id, data); // Save to cache
+                    newCount++;
+                }
+            } catch (e) {
+                console.error(`\nFailed to process ${file.name}: ${e.message}`);
+            }
         }
-    }
-    console.log('\n');
-
-    // 4. Aggregate Data
-    // Sort by date
-    ngData.sort((a, b) => new Date(a.date) - new Date(b.date));
-    sunrunData.sort((a, b) => new Date(a.date) - new Date(b.date));
-    gasData.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-    // Combine into monthly buckets (YYYY-MM)
-    const monthlyData = {};
-
-    const addToBucket = (date, type, data) => {
-        const key = date.substring(0, 7); // YYYY-MM
-        if (!monthlyData[key]) {
-            monthlyData[key] = { 
-                month: key, 
-                ngCost: 0, 
-                ngUsage: 0, 
-                ngExport: 0,
-                ngCredit: 0,
-                ngProd: 0, // New: Production from NG Meter
-                sunrunCost: 0, 
-                sunrunProd: 0,
-                gasCost: 0,
-                gasTherms: 0
-            };
-        }
-        if (type === 'NationalGrid') {
-            monthlyData[key].ngCost += data.cost;
-            monthlyData[key].ngUsage += data.usage;
-            monthlyData[key].ngExport += (data.exported || 0);
-            monthlyData[key].ngProd += (data.production || 0);
-            if (data.credit > 0) monthlyData[key].ngCredit = data.credit;
-        } else if (type === 'Sunrun') {
-            monthlyData[key].sunrunCost += data.cost;
-            monthlyData[key].sunrunProd += data.production;
-        } else if (type === 'Eversource') {
-            monthlyData[key].gasCost += data.cost;
-            monthlyData[key].gasTherms += data.therms;
-        }
+        console.log(`\n  ✅ ${cacheCount} cached, ${newCount} new.`);
     };
 
-    ngData.forEach(d => addToBucket(d.date, 'NationalGrid', d));
-    sunrunData.forEach(d => addToBucket(d.date, 'Sunrun', d));
-    gasData.forEach(d => addToBucket(d.date, 'Eversource', d));
+    await processFiles(ngFiles, 'NationalGrid', ngData);
+    await processFiles(sunrunFiles, 'Sunrun', sunrunData);
+    await processFiles(gasFiles, 'Eversource', gasData);
 
-    const sortedMonths = Object.keys(monthlyData).sort();
-    
-    // Calculate Advanced Metrics
-    const chartData = sortedMonths.map(m => {
-        const d = monthlyData[m];
-        
-        // Determine Best Production Source
-        // Use NG Production if available (it's from the meter), otherwise fallback to Sunrun
-        const totalProduction = d.ngProd > 0 ? d.ngProd : d.sunrunProd;
+    // Save cache at the end
+    cache.save();
 
-        // True Consumption Calculation
-        // Consumption = Production - Net Export + Net Import
-        // If Net Export > 0, we sent power away.
-        // If Net Import > 0 (ngUsage), we bought power.
-        
-        // Self Use = Production - Net Export
-        // (If Net Export > Production, something is wrong, clamp to 0)
-        const selfUse = Math.max(0, totalProduction - d.ngExport);
-        
-        const trueConsumption = selfUse + d.ngUsage;
-        
-        // Net Position (Production - Consumption)
-        const netPosition = totalProduction - trueConsumption;
+    // 4. Aggregate Data
+    // 4. Aggregate Data
+    const analyzer = new EnergyAnalyzer();
 
-        // Effective Rate ($/kWh)
-        const totalCost = d.ngCost + d.sunrunCost;
-        const effectiveRate = trueConsumption > 0 ? (totalCost / trueConsumption) : 0;
+    // Feed data into analyzer
+    ngData.forEach(d => analyzer.addBill(d));
+    sunrunData.forEach(d => analyzer.addBill(d));
+    gasData.forEach(d => analyzer.addBill(d));
 
-        // Gas Calculations
-        const gasKwh = d.gasTherms * 29.3;
-        const totalEnergyCost = totalCost + d.gasCost;
-        const totalEnergyKwh = trueConsumption + gasKwh;
-
-        return {
-            ...d,
-            totalProduction, // Use this for charts instead of sunrunProd
-            selfUse,
-            trueConsumption,
-            netPosition,
-            totalCost,
-            effectiveRate,
-            gasKwh,
-            totalEnergyCost,
-            totalEnergyKwh
-        };
-    });
+    // Get calculated metrics
+    const chartData = analyzer.getMonthlyAnalysis();
 
     // 5. Generate HTML Report
     const html = generateHtmlReport(chartData);
@@ -175,25 +109,25 @@ async function main() {
 
 function generateHtmlReport(data) {
     const labels = data.map(d => d.month);
-    
+
     // Prepare Datasets
     const ngCosts = data.map(d => d.ngCost);
     const sunrunCosts = data.map(d => d.sunrunCost);
     const totalCosts = data.map(d => d.totalCost);
-    
+
     const ngUsage = data.map(d => d.ngUsage);
-    const sunrunProd = data.map(d => d.sunrunProd);
     const totalProduction = data.map(d => d.totalProduction);
     const trueConsumption = data.map(d => d.trueConsumption);
     const selfUse = data.map(d => d.selfUse);
     const ngExport = data.map(d => d.ngExport);
-    
+
     const ngCredit = data.map(d => d.ngCredit);
     const effectiveRate = data.map(d => d.effectiveRate);
-    
+
     // Gas Data
     const gasCost = data.map(d => d.gasCost);
     const gasKwh = data.map(d => d.gasKwh);
+    const totalEnergyCosts = data.map(d => d.totalEnergyCost);
 
     return `
 <!DOCTYPE html>
@@ -231,6 +165,9 @@ function generateHtmlReport(data) {
             <div class="chart-container">
                 <canvas id="totalEnergyChart"></canvas>
             </div>
+            <p style="text-align: center; font-size: 0.9em; color: #666; margin-top: 10px;">
+                * Gas converted to kWh using 1 Therm = 29.3 kWh
+            </p>
         </div>
 
         <!-- 3. Total Home Consumption (Electric Only) -->
@@ -304,6 +241,60 @@ function generateHtmlReport(data) {
             interaction: { mode: 'index', intersect: false },
         };
 
+        const currencyOptions = {
+            ...commonOptions,
+            scales: {
+                y: {
+                    ticks: {
+                        callback: function(value) { return '$' + value; }
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.parsed.y !== null) {
+                                label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed.y);
+                            }
+                            return label;
+                        }
+                    }
+                }
+            }
+        };
+
+        const kwhOptions = {
+            ...commonOptions,
+            scales: {
+                y: {
+                    ticks: {
+                        callback: function(value) { return value + ' kWh'; }
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.parsed.y !== null) {
+                                label += context.parsed.y + ' kWh';
+                            }
+                            return label;
+                        }
+                    }
+                }
+            }
+        };
+
         // 1. Consumption Chart (Stacked)
         // 1. Total Energy Cost Chart
         new Chart(document.getElementById('totalCostChart'), {
@@ -328,10 +319,19 @@ function generateHtmlReport(data) {
                         data: ${JSON.stringify(sunrunCosts)},
                         backgroundColor: '#f1c40f',
                         stack: 'Stack 0'
+                    },
+                    {
+                        label: 'Total Spend',
+                        data: ${JSON.stringify(totalEnergyCosts)},
+                        type: 'line',
+                        borderColor: '#2c3e50',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.1
                     }
                 ]
             },
-            options: commonOptions
+            options: currencyOptions
         });
 
         // 2. Total Energy Consumption Chart (kWh)
@@ -354,7 +354,7 @@ function generateHtmlReport(data) {
                     }
                 ]
             },
-            options: commonOptions
+            options: kwhOptions
         });
 
         // 3. Consumption Chart (Toggleable)
@@ -402,7 +402,7 @@ function generateHtmlReport(data) {
                         }
                     ]
                 },
-                options: commonOptions
+                options: kwhOptions
             });
         }
 
@@ -441,7 +441,7 @@ function generateHtmlReport(data) {
                     }
                 ]
             },
-            options: commonOptions
+            options: kwhOptions
         });
 
         // 3. Credit Bank
@@ -460,7 +460,7 @@ function generateHtmlReport(data) {
                     }
                 ]
             },
-            options: commonOptions
+            options: currencyOptions
         });
 
         // 4. Cost Chart
@@ -491,7 +491,7 @@ function generateHtmlReport(data) {
                     }
                 ]
             },
-            options: commonOptions
+            options: currencyOptions
         });
 
         // 5. Rate Chart
@@ -541,7 +541,7 @@ function generateHtmlReport(data) {
                     }
                 ]
             },
-            options: commonOptions
+            options: kwhOptions
         });
     </script>
 </body>
