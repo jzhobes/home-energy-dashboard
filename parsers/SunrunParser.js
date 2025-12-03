@@ -71,7 +71,7 @@ export default class SunrunParser {
             }
 
             // 3. Extract Production (kWh)
-            const prodMatch = text.match(/Electricity\s+Produced[\s\S]*?(\d+)\s*kWh/i);
+            const prodMatch = text.match(/Electricity\s+Produced[\s\S]*?([\d,]+)\s*kWh/i);
             let production = 0;
             if (prodMatch) {
                 production = parseFloat(prodMatch[1].replace(/,/g, ''));

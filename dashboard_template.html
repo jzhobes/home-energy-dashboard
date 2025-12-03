@@ -120,6 +120,17 @@
             </p>
         </div>
 
+        <!-- 6. Production Source Comparison -->
+        <div class="card">
+            <h2>🔍 Solar Production Source Comparison</h2>
+            <div class="chart-container">
+                <canvas id="productionComparisonChart"></canvas>
+            </div>
+            <p style="text-align: center; font-size: 0.9em; color: #666; margin-top: 10px;">
+                Comparison of what Sunrun says you produced vs. what National Grid credited you for.
+            </p>
+        </div>
+
     </div>
 
     <script>
@@ -204,7 +215,9 @@
                 effectiveRate: data.map(d => d.effectiveRate),
                 gasCost: data.map(d => d.gasCost),
                 gasKwh: data.map(d => d.gasKwh),
-                totalEnergyCosts: data.map(d => d.totalEnergyCost)
+                totalEnergyCosts: data.map(d => d.totalEnergyCost),
+                ngProd: data.map(d => d.ngProd),     // Added
+                sunrunProd: data.map(d => d.sunrunProd) // Added
             };
         }
 
@@ -313,6 +326,20 @@
                     datasets: [
                         { label: 'Used at Home', data: d.selfUse, backgroundColor: '#2ecc71', stack: 'Stack 0' },
                         { label: 'Sent to Grid', data: d.ngExport, backgroundColor: '#95a5a6', stack: 'Stack 0' }
+                    ]
+                },
+                options: kwhOptions
+            });
+
+            // 9. Production Comparison Chart
+            if (charts.productionComparison) charts.productionComparison.destroy();
+            charts.productionComparison = new Chart(document.getElementById('productionComparisonChart'), {
+                type: 'bar',
+                data: {
+                    labels: d.labels,
+                    datasets: [
+                        { label: 'Sunrun Reported', data: d.sunrunProd, backgroundColor: '#f1c40f' },
+                        { label: 'National Grid Credited', data: d.ngProd, backgroundColor: '#3498db' }
                     ]
                 },
                 options: kwhOptions
