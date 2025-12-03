@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Total Home Energy Dashboard</title>
+    <link rel="icon" type="image/png" href="favicon.png">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background: #f4f7f6; }
@@ -28,20 +29,20 @@
             </select>
         </div>
 
-        <!-- 1. Total Energy Cost (Gas + Electric + Solar) -->
+        <!-- 1. Total Monthly Energy Spend -->
         <div class="card">
-            <h2>💰 Total Energy Wallet (Where is the money going?)</h2>
+            <h2>💰 Total Monthly Energy Spend (Where is the money going?)</h2>
             <div class="chart-container">
                 <canvas id="totalCostChart"></canvas>
             </div>
             <p style="text-align: center; font-size: 0.9em; color: #666; margin-top: 10px;">
-                Breakdown of total monthly spending across Gas, Electric, and Solar.
+                Combined cost of Gas, Electric (National Grid), and Solar (Sunrun).
             </p>
         </div>
 
-        <!-- 2. Total Energy Consumption (kWh Equivalent) -->
+        <!-- 2. Total Home Energy Usage -->
         <div class="card">
-            <h2>⚡ Total Energy Consumed (Gas vs Electric)</h2>
+            <h2>⚡ Total Home Energy Usage (Gas + Electric)</h2>
             <div class="chart-container">
                 <canvas id="totalEnergyChart"></canvas>
             </div>
@@ -50,22 +51,7 @@
             </p>
         </div>
 
-        <!-- 3. Total Home Consumption (Electric Only) -->
-        <div class="card">
-            <h2>🏠 Home Electric Consumption</h2>
-            <div style="text-align: right; margin-bottom: 10px;">
-                <button id="toggleConsumptionBtn" style="padding: 8px 16px; background: #34495e; color: white; border: none; border-radius: 4px; cursor: pointer;">Switch to Area Chart</button>
-            </div>
-            <div class="chart-container">
-                <canvas id="consumptionChart"></canvas>
-            </div>
-            <p style="text-align: center; font-size: 0.9em; color: #666;">
-                <strong>Blue:</strong> Power bought from Grid. <strong>Green:</strong> Solar power used directly. 
-                <br>The total height is your real home usage.
-            </p>
-        </div>
-
-        <!-- 2. Net Zero Tracker -->
+        <!-- 3. Net Zero Tracker -->
         <div class="card">
             <h2>⚖️ Net Zero Tracker</h2>
             <div class="chart-container">
@@ -76,18 +62,20 @@
             </p>
         </div>
 
-        <!-- 3. Credit Bank -->
+        <!-- 4. Total Home Consumption (Electric Only) -->
         <div class="card">
-            <h2>💰 National Grid Credit Bank</h2>
+            <h2>🏠 Home Electric Consumption</h2>
+
             <div class="chart-container">
-                <canvas id="creditChart"></canvas>
+                <canvas id="consumptionChart"></canvas>
             </div>
-            <p style="text-align: center; font-size: 0.9em; color: #666; margin-top: 10px;">
-                Rolling balance of net metering credits ($) accumulated with National Grid.
+            <p style="text-align: center; font-size: 0.9em; color: #666;">
+                <strong>Blue:</strong> Power bought from Grid. <strong>Green:</strong> Solar power used directly. 
+                <br>The total height is your real home usage.
             </p>
         </div>
 
-        <!-- 4. Monthly Electric Costs (Grid + Solar) -->
+        <!-- 5. Monthly Electric Costs (Grid + Solar) -->
         <div class="card">
             <h2>💵 Monthly Electric Costs (Grid + Solar)</h2>
             <div class="chart-container">
@@ -98,7 +86,29 @@
             </p>
         </div>
 
-        <!-- 5. Effective Rate -->
+        <!-- 6. Solar Utilization -->
+        <div class="card">
+            <h2>☀️ Solar Utilization (Where did the power go?)</h2>
+            <div class="chart-container">
+                <canvas id="utilizationChart"></canvas>
+            </div>
+            <p style="text-align: center; font-size: 0.9em; color: #666; margin-top: 10px;">
+                How your solar generation was used: Consumed at home (yellow) vs. Exported to grid (grey).
+            </p>
+        </div>
+
+        <!-- 7. Credit Bank -->
+        <div class="card">
+            <h2>💰 National Grid Credit Bank</h2>
+            <div class="chart-container">
+                <canvas id="creditChart"></canvas>
+            </div>
+            <p style="text-align: center; font-size: 0.9em; color: #666; margin-top: 10px;">
+                Rolling balance of net metering credits ($) accumulated with National Grid.
+            </p>
+        </div>
+
+        <!-- 8. Effective Rate -->
         <div class="card">
             <h2>📉 Effective Cost per kWh</h2>
             <div class="chart-container">
@@ -109,18 +119,7 @@
             </p>
         </div>
 
-        <!-- 5. Solar Utilization -->
-        <div class="card">
-            <h2>☀️ Solar Utilization (Where did the power go?)</h2>
-            <div class="chart-container">
-                <canvas id="utilizationChart"></canvas>
-            </div>
-            <p style="text-align: center; font-size: 0.9em; color: #666; margin-top: 10px;">
-                How your solar generation was used: Consumed at home (Green) vs. Exported to grid (Grey).
-            </p>
-        </div>
-
-        <!-- 6. Production Source Comparison -->
+        <!-- 9. Production Source Comparison -->
         <div class="card">
             <h2>🔍 Solar Production Source Comparison</h2>
             <div class="chart-container">
@@ -134,7 +133,7 @@
     </div>
 
     <script>
-        const allData = [{"month":"2021-03","ngCost":205.71,"ngUsage":751,"ngExport":0,"ngCredit":0,"ngProd":0,"sunrunCost":0,"sunrunProd":0,"gasCost":0,"gasTherms":0,"totalProduction":0,"selfUse":0,"trueConsumption":751,"netPosition":-751,"totalCost":205.71,"effectiveRate":0.27391478029294275,"gasKwh":0,"totalEnergyCost":205.71,"totalEnergyKwh":751},{"month":"2021-04","ngCost":134.52,"ngUsage":512,"ngExport":0,"ngCredit":0,"ngProd":0,"sunrunCost":0,"sunrunProd":0,"gasCost":0,"gasTherms":0,"totalProduction":0,"selfUse":0,"trueConsumption":512,"netPosition":-512,"totalCost":134.52,"effectiveRate":0.262734375,"gasKwh":0,"totalEnergyCost":134.52,"totalEnergyKwh":512},{"month":"2021-05","ngCost":200.24,"ngUsage":833,"ngExport":0,"ngCredit":0,"ngProd":0,"sunrunCost":0,"sunrunProd":0,"gasCost":0,"gasTherms":0,"totalProduction":0,"selfUse":0,"trueConsumption":833,"netPosition":-833,"totalCost":200.24,"effectiveRate":0.2403841536614646,"gasKwh":0,"totalEnergyCost":200.24,"totalEnergyKwh":833},{"month":"2021-06","ngCost":317.52,"ngUsage":1322,"ngExport":0,"ngCredit":0,"ngProd":0,"sunrunCost":0,"sunrunProd":0,"gasCost":0,"gasTherms":0,"totalProduction":0,"selfUse":0,"trueConsumption":1322,"netPosition":-1322,"totalCost":317.52,"effectiveRate":0.24018154311649015,"gasKwh":0,"totalEnergyCost":317.52,"totalEnergyKwh":1322},{"month":"2021-07","ngCost":231.48,"ngUsage":955,"ngExport":0,"ngCredit":0,"ngProd":0,"sunrunCost":0,"sunrunProd":0,"gasCost":0,"gasTherms":0,"totalProduction":0,"selfUse":0,"trueConsumption":955,"netPosition":-955,"totalCost":231.48,"effectiveRate":0.2423874345549738,"gasKwh":0,"totalEnergyCost":231.48,"totalEnergyKwh":955},{"month":"2021-08","ngCost":262.76,"ngUsage":1088,"ngExport":0,"ngCredit":0,"ngProd":0,"sunrunCost":0,"sunrunProd":0,"gasCost":0,"gasTherms":0,"totalProduction":0,"selfUse":0,"trueConsumption":1088,"netPosition":-1088,"totalCost":262.76,"effectiveRate":0.24150735294117645,"gasKwh":0,"totalEnergyCost":262.76,"totalEnergyKwh":1088},{"month":"2021-09","ngCost":170.06,"ngUsage":694,"ngExport":0,"ngCredit":0,"ngProd":0,"sunrunCost":0,"sunrunProd":0,"gasCost":0,"gasTherms":0,"totalProduction":0,"selfUse":0,"trueConsumption":694,"netPosition":-694,"totalCost":170.06,"effectiveRate":0.24504322766570605,"gasKwh":0,"totalEnergyCost":170.06,"totalEnergyKwh":694},{"month":"2021-10","ngCost":202.24,"ngUsage":766,"ngExport":0,"ngCredit":0,"ngProd":0,"sunrunCost":0,"sunrunProd":0,"gasCost":0,"gasTherms":0,"totalProduction":0,"selfUse":0,"trueConsumption":766,"netPosition":-766,"totalCost":202.24,"effectiveRate":0.26402088772845955,"gasKwh":0,"totalEnergyCost":202.24,"totalEnergyKwh":766},{"month":"2021-11","ngCost":264.24,"ngUsage":898,"ngExport":0,"ngCredit":0,"ngProd":0,"sunrunCost":0,"sunrunProd":0,"gasCost":0,"gasTherms":0,"totalProduction":0,"selfUse":0,"trueConsumption":898,"netPosition":-898,"totalCost":264.24,"effectiveRate":0.2942538975501114,"gasKwh":0,"totalEnergyCost":264.24,"totalEnergyKwh":898},{"month":"2021-12","ngCost":207.69,"ngUsage":700,"ngExport":0,"ngCredit":0,"ngProd":0,"sunrunCost":0,"sunrunProd":0,"gasCost":0,"gasTherms":0,"totalProduction":0,"selfUse":0,"trueConsumption":700,"netPosition":-700,"totalCost":207.69,"effectiveRate":0.2967,"gasKwh":0,"totalEnergyCost":207.69,"totalEnergyKwh":700},{"month":"2022-01","ngCost":188.17,"ngUsage":631,"ngExport":0,"ngCredit":0,"ngProd":0,"sunrunCost":0,"sunrunProd":0,"gasCost":0,"gasTherms":0,"totalProduction":0,"selfUse":0,"trueConsumption":631,"netPosition":-631,"totalCost":188.17,"effectiveRate":0.2982091917591125,"gasKwh":0,"totalEnergyCost":188.17,"totalEnergyKwh":631},{"month":"2022-02","ngCost":229.9,"ngUsage":781,"ngExport":0,"ngCredit":0,"ngProd":0,"sunrunCost":0,"sunrunProd":0,"gasCost":0,"gasTherms":0,"totalProduction":0,"selfUse":0,"trueConsumption":781,"netPosition":-781,"totalCost":229.9,"effectiveRate":0.2943661971830986,"gasKwh":0,"totalEnergyCost":229.9,"totalEnergyKwh":781},{"month":"2022-03","ngCost":20.38,"ngUsage":0,"ngExport":39,"ngCredit":0,"ngProd":760,"sunrunCost":140.68,"sunrunProd":820,"gasCost":0,"gasTherms":0,"totalProduction":760,"selfUse":721,"trueConsumption":721,"netPosition":39,"totalCost":161.06,"effectiveRate":0.22338418862690707,"gasKwh":0,"totalEnergyCost":161.06,"totalEnergyKwh":721},{"month":"2022-04","ngCost":0,"ngUsage":0,"ngExport":602,"ngCredit":139.65,"ngProd":1223,"sunrunCost":140.68,"sunrunProd":1252,"gasCost":0,"gasTherms":0,"totalProduction":1223,"selfUse":621,"trueConsumption":621,"netPosition":602,"totalCost":140.68,"effectiveRate":0.2265378421900161,"gasKwh":0,"totalEnergyCost":140.68,"totalEnergyKwh":621},{"month":"2022-05","ngCost":0,"ngUsage":0,"ngExport":1030,"ngCredit":366.18,"ngProd":1528,"sunrunCost":140.68,"sunrunProd":1443,"gasCost":0,"gasTherms":0,"totalProduction":1528,"selfUse":498,"trueConsumption":498,"netPosition":1030,"totalCost":140.68,"effectiveRate":0.28248995983935743,"gasKwh":0,"totalEnergyCost":140.68,"totalEnergyKwh":498},{"month":"2022-06","ngCost":0,"ngUsage":0,"ngExport":633,"ngCredit":500.66,"ngProd":1488,"sunrunCost":140.68,"sunrunProd":1477,"gasCost":0,"gasTherms":0,"totalProduction":1488,"selfUse":855,"trueConsumption":855,"netPosition":633,"totalCost":140.68,"effectiveRate":0.16453801169590643,"gasKwh":0,"totalEnergyCost":140.68,"totalEnergyKwh":855},{"month":"2022-07","ngCost":116.73,"ngUsage":410,"ngExport":0,"ngCredit":383.93,"ngProd":1364,"sunrunCost":140.68,"sunrunProd":1332,"gasCost":0,"gasTherms":0,"totalProduction":1364,"selfUse":1364,"trueConsumption":1774,"netPosition":-410,"totalCost":257.41,"effectiveRate":0.14510146561443069,"gasKwh":0,"totalEnergyCost":257.41,"totalEnergyKwh":1774},{"month":"2022-08","ngCost":0,"ngUsage":0,"ngExport":81,"ngCredit":392.29,"ngProd":961,"sunrunCost":140.68,"sunrunProd":977,"gasCost":0,"gasTherms":0,"totalProduction":961,"selfUse":880,"trueConsumption":880,"netPosition":81,"totalCost":140.68,"effectiveRate":0.15986363636363637,"gasKwh":0,"totalEnergyCost":140.68,"totalEnergyKwh":880},{"month":"2022-09","ngCost":0,"ngUsage":0,"ngExport":66,"ngCredit":398.77,"ngProd":579,"sunrunCost":140.68,"sunrunProd":608,"gasCost":0,"gasTherms":0,"totalProduction":579,"selfUse":513,"trueConsumption":513,"netPosition":66,"totalCost":140.68,"effectiveRate":0.2742300194931774,"gasKwh":0,"totalEnergyCost":140.68,"totalEnergyKwh":513},{"month":"2022-10","ngCost":16.8,"ngUsage":23,"ngExport":0,"ngCredit":381.97,"ngProd":524,"sunrunCost":140.68,"sunrunProd":451,"gasCost":0,"gasTherms":0,"totalProduction":524,"selfUse":524,"trueConsumption":547,"netPosition":-23,"totalCost":157.48000000000002,"effectiveRate":0.2878976234003657,"gasKwh":0,"totalEnergyCost":157.48000000000002,"totalEnergyKwh":547},{"month":"2022-11","ngCost":57.98,"ngUsage":105,"ngExport":0,"ngCredit":323.99,"ngProd":332,"sunrunCost":140.68,"sunrunProd":358,"gasCost":0,"gasTherms":0,"totalProduction":332,"selfUse":332,"trueConsumption":437,"netPosition":-105,"totalCost":198.66,"effectiveRate":0.4545995423340961,"gasKwh":0,"totalEnergyCost":198.66,"totalEnergyKwh":437},{"month":"2022-12","ngCost":76.9,"ngUsage":145,"ngExport":0,"ngCredit":247.09,"ngProd":296,"sunrunCost":140.68,"sunrunProd":296,"gasCost":0,"gasTherms":0,"totalProduction":296,"selfUse":296,"trueConsumption":441,"netPosition":-145,"totalCost":217.58,"effectiveRate":0.4933786848072563,"gasKwh":0,"totalEnergyCost":217.58,"totalEnergyKwh":441},{"month":"2023-01","ngCost":75.23,"ngUsage":141,"ngExport":0,"ngCredit":171.86,"ngProd":333,"sunrunCost":140.68,"sunrunProd":407,"gasCost":0,"gasTherms":0,"totalProduction":333,"selfUse":333,"trueConsumption":474,"netPosition":-141,"totalCost":215.91000000000003,"effectiveRate":0.4555063291139241,"gasKwh":0,"totalEnergyCost":215.91000000000003,"totalEnergyKwh":474},{"month":"2023-02","ngCost":0,"ngUsage":0,"ngExport":82,"ngCredit":200.36,"ngProd":547,"sunrunCost":140.68,"sunrunProd":477,"gasCost":388.32,"gasTherms":182,"totalProduction":547,"selfUse":465,"trueConsumption":465,"netPosition":82,"totalCost":140.68,"effectiveRate":0.30253763440860215,"gasKwh":5332.6,"totalEnergyCost":529,"totalEnergyKwh":5797.6},{"month":"2023-03","ngCost":0,"ngUsage":0,"ngExport":634,"ngCredit":481.51,"ngProd":1010,"sunrunCost":144.76,"sunrunProd":1000,"gasCost":248.74,"gasTherms":143,"totalProduction":1010,"selfUse":376,"trueConsumption":376,"netPosition":634,"totalCost":144.76,"effectiveRate":0.38499999999999995,"gasKwh":4189.900000000001,"totalEnergyCost":393.5,"totalEnergyKwh":4565.900000000001},{"month":"2023-04","ngCost":0,"ngUsage":0,"ngExport":658,"ngCredit":718.34,"ngProd":977,"sunrunCost":144.76,"sunrunProd":1089,"gasCost":107.45,"gasTherms":58,"totalProduction":977,"selfUse":319,"trueConsumption":319,"netPosition":658,"totalCost":144.76,"effectiveRate":0.45379310344827584,"gasKwh":1699.4,"totalEnergyCost":252.20999999999998,"totalEnergyKwh":2018.4},{"month":"2023-05","ngCost":0,"ngUsage":0,"ngExport":1206,"ngCredit":1023.37,"ngProd":1538,"sunrunCost":144.76,"sunrunProd":1476,"gasCost":62.33,"gasTherms":35,"totalProduction":1538,"selfUse":332,"trueConsumption":332,"netPosition":1206,"totalCost":144.76,"effectiveRate":0.4360240963855421,"gasKwh":1025.5,"totalEnergyCost":207.08999999999997,"totalEnergyKwh":1357.5},{"month":"2023-06","ngCost":0,"ngUsage":0,"ngExport":313,"ngCredit":1091.61,"ngProd":1249,"sunrunCost":144.76,"sunrunProd":1224,"gasCost":51.09,"gasTherms":28,"totalProduction":1249,"selfUse":936,"trueConsumption":936,"netPosition":313,"totalCost":144.76,"effectiveRate":0.15465811965811965,"gasKwh":820.4,"totalEnergyCost":195.85,"totalEnergyKwh":1756.4},{"month":"2023-07","ngCost":0,"ngUsage":0,"ngExport":194,"ngCredit":1125.33,"ngProd":1177,"sunrunCost":144.76,"sunrunProd":1275,"gasCost":44.08,"gasTherms":23,"totalProduction":1177,"selfUse":983,"trueConsumption":983,"netPosition":194,"totalCost":144.76,"effectiveRate":0.14726347914547303,"gasKwh":673.9,"totalEnergyCost":188.83999999999997,"totalEnergyKwh":1656.9},{"month":"2023-08","ngCost":0,"ngUsage":0,"ngExport":92,"ngCredit":1133.65,"ngProd":970,"sunrunCost":144.76,"sunrunProd":881,"gasCost":42.7,"gasTherms":22,"totalProduction":970,"selfUse":878,"trueConsumption":878,"netPosition":92,"totalCost":144.76,"effectiveRate":0.164874715261959,"gasKwh":644.6,"totalEnergyCost":187.45999999999998,"totalEnergyKwh":1522.6},{"month":"2023-09","ngCost":0,"ngUsage":0,"ngExport":249,"ngCredit":1189,"ngProd":564,"sunrunCost":144.76,"sunrunProd":590,"gasCost":48.25,"gasTherms":26,"totalProduction":564,"selfUse":315,"trueConsumption":315,"netPosition":249,"totalCost":144.76,"effectiveRate":0.45955555555555555,"gasKwh":761.8000000000001,"totalEnergyCost":193.01,"totalEnergyKwh":1076.8000000000002},{"month":"2023-10","ngCost":0,"ngUsage":0,"ngExport":200,"ngCredit":1236,"ngProd":419,"sunrunCost":144.76,"sunrunProd":425,"gasCost":62.1,"gasTherms":36,"totalProduction":419,"selfUse":219,"trueConsumption":219,"netPosition":200,"totalCost":144.76,"effectiveRate":0.6610045662100457,"gasKwh":1054.8,"totalEnergyCost":206.85999999999999,"totalEnergyKwh":1273.8},{"month":"2023-11","ngCost":44.74,"ngUsage":99,"ngExport":0,"ngCredit":1191.26,"ngProd":401,"sunrunCost":144.76,"sunrunProd":358,"gasCost":256.07,"gasTherms":138,"totalProduction":401,"selfUse":401,"trueConsumption":500,"netPosition":-99,"totalCost":189.5,"effectiveRate":0.379,"gasKwh":4043.4,"totalEnergyCost":445.57,"totalEnergyKwh":4543.4},{"month":"2023-12","ngCost":55.6,"ngUsage":134,"ngExport":0,"ngCredit":1135.66,"ngProd":354,"sunrunCost":144.76,"sunrunProd":352,"gasCost":302.11,"gasTherms":163,"totalProduction":354,"selfUse":354,"trueConsumption":488,"netPosition":-134,"totalCost":200.35999999999999,"effectiveRate":0.41057377049180327,"gasKwh":4775.900000000001,"totalEnergyCost":502.47,"totalEnergyKwh":5263.900000000001},{"month":"2024-01","ngCost":73.74,"ngUsage":191,"ngExport":0,"ngCredit":1061.92,"ngProd":313,"sunrunCost":144.76,"sunrunProd":325,"gasCost":439.29,"gasTherms":250,"totalProduction":313,"selfUse":313,"trueConsumption":504,"netPosition":-191,"totalCost":218.5,"effectiveRate":0.43353174603174605,"gasKwh":7325,"totalEnergyCost":657.79,"totalEnergyKwh":7829},{"month":"2024-02","ngCost":299.81,"ngUsage":839,"ngExport":0,"ngCredit":762.11,"ngProd":625,"sunrunCost":144.76,"sunrunProd":660,"gasCost":253.41,"gasTherms":142,"totalProduction":625,"selfUse":625,"trueConsumption":1464,"netPosition":-839,"totalCost":444.57,"effectiveRate":0.30366803278688526,"gasKwh":4160.6,"totalEnergyCost":697.98,"totalEnergyKwh":5624.6},{"month":"2024-03","ngCost":104.94,"ngUsage":265,"ngExport":0,"ngCredit":657.17,"ngProd":819,"sunrunCost":148.96,"sunrunProd":865,"gasCost":35.98,"gasTherms":14,"totalProduction":819,"selfUse":819,"trueConsumption":1084,"netPosition":-265,"totalCost":253.9,"effectiveRate":0.2342250922509225,"gasKwh":410.2,"totalEnergyCost":289.88,"totalEnergyKwh":1494.2},{"month":"2024-04","ngCost":0,"ngUsage":0,"ngExport":692,"ngCredit":865.96,"ngProd":1188,"sunrunCost":148.96,"sunrunProd":1279,"gasCost":39.37,"gasTherms":16,"totalProduction":1188,"selfUse":496,"trueConsumption":496,"netPosition":692,"totalCost":148.96,"effectiveRate":0.3003225806451613,"gasKwh":468.8,"totalEnergyCost":188.33,"totalEnergyKwh":964.8},{"month":"2024-05","ngCost":0,"ngUsage":0,"ngExport":964,"ngCredit":1161.3,"ngProd":1439,"sunrunCost":148.96,"sunrunProd":1365,"gasCost":36.63,"gasTherms":17,"totalProduction":1439,"selfUse":475,"trueConsumption":475,"netPosition":964,"totalCost":148.96,"effectiveRate":0.3136,"gasKwh":498.1,"totalEnergyCost":185.59,"totalEnergyKwh":973.1},{"month":"2024-06","ngCost":37.89,"ngUsage":57,"ngExport":0,"ngCredit":1123.41,"ngProd":1594,"sunrunCost":148.96,"sunrunProd":1427,"gasCost":65.64,"gasTherms":12,"totalProduction":1594,"selfUse":1594,"trueConsumption":1651,"netPosition":-57,"totalCost":186.85000000000002,"effectiveRate":0.11317383403997579,"gasKwh":351.6,"totalEnergyCost":252.49,"totalEnergyKwh":2002.6},{"month":"2024-07","ngCost":125.29,"ngUsage":318,"ngExport":0,"ngCredit":998.12,"ngProd":1185,"sunrunCost":148.96,"sunrunProd":0,"gasCost":96.06,"gasTherms":13,"totalProduction":1185,"selfUse":1185,"trueConsumption":1503,"netPosition":-318,"totalCost":274.25,"effectiveRate":0.18246839654025282,"gasKwh":380.90000000000003,"totalEnergyCost":370.31,"totalEnergyKwh":1883.9},{"month":"2024-08","ngCost":79.21,"ngUsage":193,"ngExport":0,"ngCredit":918.91,"ngProd":1131,"sunrunCost":148.96,"sunrunProd":2452,"gasCost":27.19,"gasTherms":11,"totalProduction":1131,"selfUse":1131,"trueConsumption":1324,"netPosition":-193,"totalCost":228.17000000000002,"effectiveRate":0.17233383685800605,"gasKwh":322.3,"totalEnergyCost":255.36,"totalEnergyKwh":1646.3},{"month":"2024-09","ngCost":120.33,"ngUsage":324,"ngExport":0,"ngCredit":798.58,"ngProd":682,"sunrunCost":148.96,"sunrunProd":646,"gasCost":32.65,"gasTherms":15,"totalProduction":682,"selfUse":682,"trueConsumption":1006,"netPosition":-324,"totalCost":269.29,"effectiveRate":0.26768389662027836,"gasKwh":439.5,"totalEnergyCost":301.94,"totalEnergyKwh":1445.5},{"month":"2024-10","ngCost":168.16,"ngUsage":461,"ngExport":0,"ngCredit":630.42,"ngProd":617,"sunrunCost":148.96,"sunrunProd":578,"gasCost":27.19,"gasTherms":11,"totalProduction":617,"selfUse":617,"trueConsumption":1078,"netPosition":-461,"totalCost":317.12,"effectiveRate":0.2941743970315399,"gasKwh":322.3,"totalEnergyCost":344.31,"totalEnergyKwh":1400.3},{"month":"2024-11","ngCost":528.25,"ngUsage":1509,"ngExport":0,"ngCredit":102.17,"ngProd":415,"sunrunCost":148.96,"sunrunProd":419,"gasCost":35.82,"gasTherms":11,"totalProduction":415,"selfUse":415,"trueConsumption":1924,"netPosition":-1509,"totalCost":677.21,"effectiveRate":0.3519802494802495,"gasKwh":322.3,"totalEnergyCost":713.0300000000001,"totalEnergyKwh":2246.3},{"month":"2024-12","ngCost":931.59,"ngUsage":2692,"ngExport":0,"ngCredit":0,"ngProd":362,"sunrunCost":148.96,"sunrunProd":314,"gasCost":47.75,"gasTherms":16,"totalProduction":362,"selfUse":362,"trueConsumption":3054,"netPosition":-2692,"totalCost":1080.55,"effectiveRate":0.35381466928618205,"gasKwh":468.8,"totalEnergyCost":1128.3,"totalEnergyKwh":3522.8},{"month":"2025-01","ngCost":859.55,"ngUsage":2530,"ngExport":0,"ngCredit":0,"ngProd":300,"sunrunCost":148.96,"sunrunProd":342,"gasCost":56.64,"gasTherms":20,"totalProduction":300,"selfUse":300,"trueConsumption":2830,"netPosition":-2530,"totalCost":1008.51,"effectiveRate":0.35636395759717315,"gasKwh":586,"totalEnergyCost":1065.15,"totalEnergyKwh":3416},{"month":"2025-02","ngCost":347.19,"ngUsage":1471,"ngExport":0,"ngCredit":512.36,"ngProd":722,"sunrunCost":148.96,"sunrunProd":675,"gasCost":57.07,"gasTherms":19,"totalProduction":722,"selfUse":722,"trueConsumption":2193,"netPosition":-1471,"totalCost":496.15,"effectiveRate":0.22624259005927952,"gasKwh":556.7,"totalEnergyCost":553.22,"totalEnergyKwh":2749.7},{"month":"2025-03","ngCost":26,"ngUsage":280,"ngExport":0,"ngCredit":486.36,"ngProd":740,"sunrunCost":153.28,"sunrunProd":826,"gasCost":52.39,"gasTherms":19,"totalProduction":740,"selfUse":740,"trueConsumption":1020,"netPosition":-280,"totalCost":179.28,"effectiveRate":0.17576470588235293,"gasKwh":556.7,"totalEnergyCost":231.67000000000002,"totalEnergyKwh":1576.7},{"month":"2025-04","ngCost":0,"ngUsage":0,"ngExport":422,"ngCredit":598.66,"ngProd":1374,"sunrunCost":153.28,"sunrunProd":1239,"gasCost":54.5,"gasTherms":20,"totalProduction":1374,"selfUse":952,"trueConsumption":952,"netPosition":422,"totalCost":153.28,"effectiveRate":0.16100840336134453,"gasKwh":586,"totalEnergyCost":207.78,"totalEnergyKwh":1538},{"month":"2025-05","ngCost":0,"ngUsage":0,"ngExport":87,"ngCredit":612.27,"ngProd":1224,"sunrunCost":153.28,"sunrunProd":1178,"gasCost":41.94,"gasTherms":13,"totalProduction":1224,"selfUse":1137,"trueConsumption":1137,"netPosition":87,"totalCost":153.28,"effectiveRate":0.1348109058927001,"gasKwh":380.90000000000003,"totalEnergyCost":195.22,"totalEnergyKwh":1517.9},{"month":"2025-06","ngCost":34.78,"ngUsage":92,"ngExport":0,"ngCredit":577.49,"ngProd":1335,"sunrunCost":153.28,"sunrunProd":1423,"gasCost":41.94,"gasTherms":13,"totalProduction":1335,"selfUse":1335,"trueConsumption":1427,"netPosition":-92,"totalCost":188.06,"effectiveRate":0.13178696566222844,"gasKwh":380.90000000000003,"totalEnergyCost":230,"totalEnergyKwh":1807.9},{"month":"2025-07","ngCost":16.43,"ngUsage":13,"ngExport":0,"ngCredit":561.06,"ngProd":1414,"sunrunCost":153.28,"sunrunProd":1496,"gasCost":44.23,"gasTherms":14,"totalProduction":1414,"selfUse":1414,"trueConsumption":1427,"netPosition":-13,"totalCost":169.71,"effectiveRate":0.11892782060266294,"gasKwh":410.2,"totalEnergyCost":213.94,"totalEnergyKwh":1837.2},{"month":"2025-08","ngCost":51.63,"ngUsage":164,"ngExport":0,"ngCredit":509.43,"ngProd":1102,"sunrunCost":153.28,"sunrunProd":1168,"gasCost":46.53,"gasTherms":15,"totalProduction":1102,"selfUse":1102,"trueConsumption":1266,"netPosition":-164,"totalCost":204.91,"effectiveRate":0.1618562401263823,"gasKwh":439.5,"totalEnergyCost":251.44,"totalEnergyKwh":1705.5},{"month":"2025-09","ngCost":121.27,"ngUsage":455,"ngExport":0,"ngCredit":388.16,"ngProd":800,"sunrunCost":153.28,"sunrunProd":703,"gasCost":60.25,"gasTherms":21,"totalProduction":800,"selfUse":800,"trueConsumption":1255,"netPosition":-455,"totalCost":274.55,"effectiveRate":0.21876494023904383,"gasKwh":615.3000000000001,"totalEnergyCost":334.8,"totalEnergyKwh":1870.3000000000002},{"month":"2025-10","ngCost":124.85,"ngUsage":499,"ngExport":0,"ngCredit":263.31,"ngProd":441,"sunrunCost":153.28,"sunrunProd":479,"gasCost":55.01,"gasTherms":20,"totalProduction":441,"selfUse":441,"trueConsumption":940,"netPosition":-499,"totalCost":278.13,"effectiveRate":0.29588297872340424,"gasKwh":586,"totalEnergyCost":333.14,"totalEnergyKwh":1526},{"month":"2025-11","ngCost":0,"ngUsage":0,"ngExport":0,"ngCredit":0,"ngProd":0,"sunrunCost":0,"sunrunProd":0,"gasCost":0,"gasTherms":22,"totalProduction":0,"selfUse":0,"trueConsumption":0,"netPosition":0,"totalCost":0,"effectiveRate":0,"gasKwh":644.6,"totalEnergyCost":0,"totalEnergyKwh":644.6}];
+        const allData = [{"month":"2021-03","ngStartDate":"2021-03-15","ngEndDate":"2021-04-14","ngCost":205.71,"ngUsage":751,"ngExport":0,"ngCredit":0,"ngProd":0,"sunrunCost":0,"sunrunProd":0,"gasCost":0,"gasTherms":0,"totalProduction":0,"selfUse":0,"trueConsumption":751,"netPosition":-751,"totalCost":205.71,"effectiveRate":0.27391478029294275,"gasKwh":0,"totalEnergyCost":205.71,"totalEnergyKwh":751,"billingPeriodProd":0},{"month":"2021-04","ngStartDate":"2021-04-14","ngEndDate":"2021-05-13","ngCost":134.52,"ngUsage":512,"ngExport":0,"ngCredit":0,"ngProd":0,"sunrunCost":0,"sunrunProd":0,"gasCost":0,"gasTherms":0,"totalProduction":0,"selfUse":0,"trueConsumption":512,"netPosition":-512,"totalCost":134.52,"effectiveRate":0.262734375,"gasKwh":0,"totalEnergyCost":134.52,"totalEnergyKwh":512,"billingPeriodProd":0},{"month":"2021-05","ngStartDate":"2021-05-13","ngEndDate":"2021-06-11","ngCost":200.24,"ngUsage":833,"ngExport":0,"ngCredit":0,"ngProd":0,"sunrunCost":0,"sunrunProd":0,"gasCost":0,"gasTherms":0,"totalProduction":0,"selfUse":0,"trueConsumption":833,"netPosition":-833,"totalCost":200.24,"effectiveRate":0.2403841536614646,"gasKwh":0,"totalEnergyCost":200.24,"totalEnergyKwh":833,"billingPeriodProd":0},{"month":"2021-06","ngStartDate":"2021-06-11","ngEndDate":"2021-07-14","ngCost":317.52,"ngUsage":1322,"ngExport":0,"ngCredit":0,"ngProd":0,"sunrunCost":0,"sunrunProd":0,"gasCost":0,"gasTherms":0,"totalProduction":0,"selfUse":0,"trueConsumption":1322,"netPosition":-1322,"totalCost":317.52,"effectiveRate":0.24018154311649015,"gasKwh":0,"totalEnergyCost":317.52,"totalEnergyKwh":1322,"billingPeriodProd":0},{"month":"2021-07","ngStartDate":"2021-07-14","ngEndDate":"2021-08-13","ngCost":231.48,"ngUsage":955,"ngExport":0,"ngCredit":0,"ngProd":0,"sunrunCost":0,"sunrunProd":0,"gasCost":0,"gasTherms":0,"totalProduction":0,"selfUse":0,"trueConsumption":955,"netPosition":-955,"totalCost":231.48,"effectiveRate":0.2423874345549738,"gasKwh":0,"totalEnergyCost":231.48,"totalEnergyKwh":955,"billingPeriodProd":0},{"month":"2021-08","ngStartDate":"2021-08-13","ngEndDate":"2021-09-15","ngCost":262.76,"ngUsage":1088,"ngExport":0,"ngCredit":0,"ngProd":0,"sunrunCost":0,"sunrunProd":0,"gasCost":0,"gasTherms":0,"totalProduction":0,"selfUse":0,"trueConsumption":1088,"netPosition":-1088,"totalCost":262.76,"effectiveRate":0.24150735294117645,"gasKwh":0,"totalEnergyCost":262.76,"totalEnergyKwh":1088,"billingPeriodProd":0},{"month":"2021-09","ngStartDate":"2021-09-15","ngEndDate":"2021-10-12","ngCost":170.06,"ngUsage":694,"ngExport":0,"ngCredit":0,"ngProd":0,"sunrunCost":0,"sunrunProd":0,"gasCost":0,"gasTherms":0,"totalProduction":0,"selfUse":0,"trueConsumption":694,"netPosition":-694,"totalCost":170.06,"effectiveRate":0.24504322766570605,"gasKwh":0,"totalEnergyCost":170.06,"totalEnergyKwh":694,"billingPeriodProd":0},{"month":"2021-10","ngStartDate":"2021-10-12","ngEndDate":"2021-11-12","ngCost":202.24,"ngUsage":766,"ngExport":0,"ngCredit":0,"ngProd":0,"sunrunCost":0,"sunrunProd":0,"gasCost":0,"gasTherms":0,"totalProduction":0,"selfUse":0,"trueConsumption":766,"netPosition":-766,"totalCost":202.24,"effectiveRate":0.26402088772845955,"gasKwh":0,"totalEnergyCost":202.24,"totalEnergyKwh":766,"billingPeriodProd":0},{"month":"2021-11","ngStartDate":"2021-11-12","ngEndDate":"2021-12-14","ngCost":264.24,"ngUsage":898,"ngExport":0,"ngCredit":0,"ngProd":0,"sunrunCost":0,"sunrunProd":0,"gasCost":0,"gasTherms":0,"totalProduction":0,"selfUse":0,"trueConsumption":898,"netPosition":-898,"totalCost":264.24,"effectiveRate":0.2942538975501114,"gasKwh":0,"totalEnergyCost":264.24,"totalEnergyKwh":898,"billingPeriodProd":0},{"month":"2021-12","ngStartDate":"2021-12-14","ngEndDate":"2022-01-12","ngCost":207.69,"ngUsage":700,"ngExport":0,"ngCredit":0,"ngProd":0,"sunrunCost":0,"sunrunProd":0,"gasCost":0,"gasTherms":0,"totalProduction":0,"selfUse":0,"trueConsumption":700,"netPosition":-700,"totalCost":207.69,"effectiveRate":0.2967,"gasKwh":0,"totalEnergyCost":207.69,"totalEnergyKwh":700,"billingPeriodProd":0},{"month":"2022-01","ngStartDate":"2022-01-12","ngEndDate":"2022-02-10","ngCost":188.17,"ngUsage":631,"ngExport":0,"ngCredit":0,"ngProd":0,"sunrunCost":0,"sunrunProd":0,"gasCost":0,"gasTherms":0,"totalProduction":0,"selfUse":0,"trueConsumption":631,"netPosition":-631,"totalCost":188.17,"effectiveRate":0.2982091917591125,"gasKwh":0,"totalEnergyCost":188.17,"totalEnergyKwh":631,"billingPeriodProd":0},{"month":"2022-02","ngStartDate":"2022-02-10","ngEndDate":"2022-03-11","ngCost":229.9,"ngUsage":781,"ngExport":0,"ngCredit":0,"ngProd":0,"sunrunCost":0,"sunrunProd":0,"gasCost":0,"gasTherms":0,"totalProduction":0,"selfUse":0,"trueConsumption":781,"netPosition":-781,"totalCost":229.9,"effectiveRate":0.2943661971830986,"gasKwh":0,"totalEnergyCost":229.9,"totalEnergyKwh":781,"billingPeriodProd":0},{"month":"2022-03","ngStartDate":"2022-03-11","ngEndDate":"2022-04-12","ngCost":20.38,"ngUsage":0,"ngExport":39,"ngCredit":0,"ngProd":760,"sunrunCost":140.68,"sunrunProd":820,"gasCost":0,"gasTherms":0,"totalProduction":724,"selfUse":685,"trueConsumption":685,"netPosition":39,"totalCost":161.06,"effectiveRate":0.23512408759124087,"gasKwh":0,"totalEnergyCost":161.06,"totalEnergyKwh":685,"billingPeriodProd":724},{"month":"2022-04","ngStartDate":"2022-04-12","ngEndDate":"2022-05-13","ngCost":0,"ngUsage":0,"ngExport":602,"ngCredit":139.65,"ngProd":1223,"sunrunCost":140.68,"sunrunProd":1252,"gasCost":0,"gasTherms":0,"totalProduction":1282,"selfUse":680,"trueConsumption":680,"netPosition":602,"totalCost":140.68,"effectiveRate":0.2068823529411765,"gasKwh":0,"totalEnergyCost":140.68,"totalEnergyKwh":680,"billingPeriodProd":1282},{"month":"2022-05","ngStartDate":"2022-05-13","ngEndDate":"2022-06-14","ngCost":0,"ngUsage":0,"ngExport":1030,"ngCredit":366.18,"ngProd":1528,"sunrunCost":140.68,"sunrunProd":1443,"gasCost":0,"gasTherms":0,"totalProduction":1512,"selfUse":482,"trueConsumption":482,"netPosition":1030,"totalCost":140.68,"effectiveRate":0.2918672199170125,"gasKwh":0,"totalEnergyCost":140.68,"totalEnergyKwh":482,"billingPeriodProd":1512},{"month":"2022-06","ngStartDate":"2022-06-14","ngEndDate":"2022-07-14","ngCost":0,"ngUsage":0,"ngExport":633,"ngCredit":500.66,"ngProd":1488,"sunrunCost":140.68,"sunrunProd":1477,"gasCost":0,"gasTherms":0,"totalProduction":1538,"selfUse":905,"trueConsumption":905,"netPosition":633,"totalCost":140.68,"effectiveRate":0.15544751381215471,"gasKwh":0,"totalEnergyCost":140.68,"totalEnergyKwh":905,"billingPeriodProd":1538},{"month":"2022-07","ngStartDate":"2022-07-14","ngEndDate":"2022-08-15","ngCost":116.73,"ngUsage":410,"ngExport":0,"ngCredit":383.93,"ngProd":1364,"sunrunCost":140.68,"sunrunProd":1332,"gasCost":0,"gasTherms":0,"totalProduction":1427,"selfUse":1427,"trueConsumption":1837,"netPosition":-410,"totalCost":257.41,"effectiveRate":0.1401252041371802,"gasKwh":0,"totalEnergyCost":257.41,"totalEnergyKwh":1837,"billingPeriodProd":1427},{"month":"2022-08","ngStartDate":"2022-08-15","ngEndDate":"2022-09-14","ngCost":0,"ngUsage":0,"ngExport":81,"ngCredit":392.29,"ngProd":961,"sunrunCost":140.68,"sunrunProd":977,"gasCost":0,"gasTherms":0,"totalProduction":981,"selfUse":900,"trueConsumption":900,"netPosition":81,"totalCost":140.68,"effectiveRate":0.15631111111111112,"gasKwh":0,"totalEnergyCost":140.68,"totalEnergyKwh":900,"billingPeriodProd":981},{"month":"2022-09","ngStartDate":"2022-09-14","ngEndDate":"2022-10-11","ngCost":0,"ngUsage":0,"ngExport":66,"ngCredit":398.77,"ngProd":579,"sunrunCost":140.68,"sunrunProd":608,"gasCost":0,"gasTherms":0,"totalProduction":592,"selfUse":526,"trueConsumption":526,"netPosition":66,"totalCost":140.68,"effectiveRate":0.26745247148288975,"gasKwh":0,"totalEnergyCost":140.68,"totalEnergyKwh":526,"billingPeriodProd":592},{"month":"2022-10","ngStartDate":"2022-10-11","ngEndDate":"2022-11-15","ngCost":16.8,"ngUsage":23,"ngExport":0,"ngCredit":381.97,"ngProd":524,"sunrunCost":140.68,"sunrunProd":451,"gasCost":0,"gasTherms":0,"totalProduction":532,"selfUse":532,"trueConsumption":555,"netPosition":-23,"totalCost":157.48000000000002,"effectiveRate":0.2837477477477478,"gasKwh":0,"totalEnergyCost":157.48000000000002,"totalEnergyKwh":555,"billingPeriodProd":532},{"month":"2022-11","ngStartDate":"2022-11-15","ngEndDate":"2022-12-14","ngCost":57.98,"ngUsage":105,"ngExport":0,"ngCredit":323.99,"ngProd":332,"sunrunCost":140.68,"sunrunProd":358,"gasCost":0,"gasTherms":0,"totalProduction":358,"selfUse":358,"trueConsumption":463,"netPosition":-105,"totalCost":198.66,"effectiveRate":0.42907127429805614,"gasKwh":0,"totalEnergyCost":198.66,"totalEnergyKwh":463,"billingPeriodProd":358},{"month":"2022-12","ngStartDate":"2022-12-14","ngEndDate":"2023-01-12","ngCost":76.9,"ngUsage":145,"ngExport":0,"ngCredit":247.09,"ngProd":296,"sunrunCost":140.68,"sunrunProd":296,"gasCost":0,"gasTherms":0,"totalProduction":311,"selfUse":311,"trueConsumption":456,"netPosition":-145,"totalCost":217.58,"effectiveRate":0.47714912280701754,"gasKwh":0,"totalEnergyCost":217.58,"totalEnergyKwh":456,"billingPeriodProd":311},{"month":"2023-01","ngStartDate":"2023-01-12","ngEndDate":"2023-02-10","ngCost":75.23,"ngUsage":141,"ngExport":0,"ngCredit":171.86,"ngProd":333,"sunrunCost":140.68,"sunrunProd":407,"gasCost":0,"gasTherms":0,"totalProduction":336,"selfUse":336,"trueConsumption":477,"netPosition":-141,"totalCost":215.91000000000003,"effectiveRate":0.4526415094339623,"gasKwh":0,"totalEnergyCost":215.91000000000003,"totalEnergyKwh":477,"billingPeriodProd":336},{"month":"2023-02","ngStartDate":"2023-02-10","ngEndDate":"2023-03-13","ngCost":0,"ngUsage":0,"ngExport":82,"ngCredit":200.36,"ngProd":547,"sunrunCost":140.68,"sunrunProd":477,"gasCost":388.32,"gasTherms":182,"totalProduction":559,"selfUse":477,"trueConsumption":477,"netPosition":82,"totalCost":140.68,"effectiveRate":0.2949266247379455,"gasKwh":5332.6,"totalEnergyCost":529,"totalEnergyKwh":5809.6,"billingPeriodProd":559},{"month":"2023-03","ngStartDate":"2023-03-13","ngEndDate":"2023-04-14","ngCost":0,"ngUsage":0,"ngExport":634,"ngCredit":481.51,"ngProd":1010,"sunrunCost":144.76,"sunrunProd":1000,"gasCost":248.74,"gasTherms":143,"totalProduction":998,"selfUse":364,"trueConsumption":364,"netPosition":634,"totalCost":144.76,"effectiveRate":0.3976923076923077,"gasKwh":4189.900000000001,"totalEnergyCost":393.5,"totalEnergyKwh":4553.900000000001,"billingPeriodProd":998},{"month":"2023-04","ngStartDate":"2023-04-14","ngEndDate":"2023-05-12","ngCost":0,"ngUsage":0,"ngExport":658,"ngCredit":718.34,"ngProd":977,"sunrunCost":144.76,"sunrunProd":1089,"gasCost":107.45,"gasTherms":58,"totalProduction":1012,"selfUse":354,"trueConsumption":354,"netPosition":658,"totalCost":144.76,"effectiveRate":0.40892655367231634,"gasKwh":1699.4,"totalEnergyCost":252.20999999999998,"totalEnergyKwh":2053.4,"billingPeriodProd":1012},{"month":"2023-05","ngStartDate":"2023-05-12","ngEndDate":"2023-06-13","ngCost":0,"ngUsage":0,"ngExport":1206,"ngCredit":1023.37,"ngProd":1538,"sunrunCost":144.76,"sunrunProd":1476,"gasCost":62.33,"gasTherms":35,"totalProduction":1590,"selfUse":384,"trueConsumption":384,"netPosition":1206,"totalCost":144.76,"effectiveRate":0.37697916666666664,"gasKwh":1025.5,"totalEnergyCost":207.08999999999997,"totalEnergyKwh":1409.5,"billingPeriodProd":1590},{"month":"2023-06","ngStartDate":"2023-06-13","ngEndDate":"2023-07-13","ngCost":0,"ngUsage":0,"ngExport":313,"ngCredit":1091.61,"ngProd":1249,"sunrunCost":144.76,"sunrunProd":1224,"gasCost":51.09,"gasTherms":28,"totalProduction":1278,"selfUse":965,"trueConsumption":965,"netPosition":313,"totalCost":144.76,"effectiveRate":0.15001036269430051,"gasKwh":820.4,"totalEnergyCost":195.85,"totalEnergyKwh":1785.4,"billingPeriodProd":1278},{"month":"2023-07","ngStartDate":"2023-07-13","ngEndDate":"2023-08-11","ngCost":0,"ngUsage":0,"ngExport":194,"ngCredit":1125.33,"ngProd":1177,"sunrunCost":144.76,"sunrunProd":1275,"gasCost":44.08,"gasTherms":23,"totalProduction":1231,"selfUse":1037,"trueConsumption":1037,"netPosition":194,"totalCost":144.76,"effectiveRate":0.13959498553519767,"gasKwh":673.9,"totalEnergyCost":188.83999999999997,"totalEnergyKwh":1710.9,"billingPeriodProd":1231},{"month":"2023-08","ngStartDate":"2023-08-11","ngEndDate":"2023-09-13","ngCost":0,"ngUsage":0,"ngExport":92,"ngCredit":1133.65,"ngProd":970,"sunrunCost":144.76,"sunrunProd":881,"gasCost":42.7,"gasTherms":22,"totalProduction":1026,"selfUse":934,"trueConsumption":934,"netPosition":92,"totalCost":144.76,"effectiveRate":0.15498929336188436,"gasKwh":644.6,"totalEnergyCost":187.45999999999998,"totalEnergyKwh":1578.6,"billingPeriodProd":1026},{"month":"2023-09","ngStartDate":"2023-09-13","ngEndDate":"2023-10-12","ngCost":0,"ngUsage":0,"ngExport":249,"ngCredit":1189,"ngProd":564,"sunrunCost":144.76,"sunrunProd":590,"gasCost":48.25,"gasTherms":26,"totalProduction":603,"selfUse":354,"trueConsumption":354,"netPosition":249,"totalCost":144.76,"effectiveRate":0.40892655367231634,"gasKwh":761.8000000000001,"totalEnergyCost":193.01,"totalEnergyKwh":1115.8000000000002,"billingPeriodProd":603},{"month":"2023-10","ngStartDate":"2023-10-12","ngEndDate":"2023-11-10","ngCost":0,"ngUsage":0,"ngExport":200,"ngCredit":1236,"ngProd":419,"sunrunCost":144.76,"sunrunProd":425,"gasCost":62.1,"gasTherms":36,"totalProduction":433,"selfUse":233,"trueConsumption":233,"netPosition":200,"totalCost":144.76,"effectiveRate":0.6212875536480686,"gasKwh":1054.8,"totalEnergyCost":206.85999999999999,"totalEnergyKwh":1287.8,"billingPeriodProd":433},{"month":"2023-11","ngStartDate":"2023-11-10","ngEndDate":"2023-12-13","ngCost":44.74,"ngUsage":99,"ngExport":0,"ngCredit":1191.26,"ngProd":401,"sunrunCost":144.76,"sunrunProd":358,"gasCost":256.07,"gasTherms":138,"totalProduction":399,"selfUse":399,"trueConsumption":498,"netPosition":-99,"totalCost":189.5,"effectiveRate":0.38052208835341367,"gasKwh":4043.4,"totalEnergyCost":445.57,"totalEnergyKwh":4541.4,"billingPeriodProd":399},{"month":"2023-12","ngStartDate":"2023-12-13","ngEndDate":"2024-01-13","ngCost":55.6,"ngUsage":134,"ngExport":0,"ngCredit":1135.66,"ngProd":354,"sunrunCost":144.76,"sunrunProd":352,"gasCost":302.11,"gasTherms":163,"totalProduction":377,"selfUse":377,"trueConsumption":511,"netPosition":-134,"totalCost":200.35999999999999,"effectiveRate":0.39209393346379645,"gasKwh":4775.900000000001,"totalEnergyCost":502.47,"totalEnergyKwh":5286.900000000001,"billingPeriodProd":377},{"month":"2024-01","ngStartDate":"2024-01-13","ngEndDate":"2024-02-12","ngCost":73.74,"ngUsage":191,"ngExport":0,"ngCredit":1061.92,"ngProd":313,"sunrunCost":144.76,"sunrunProd":325,"gasCost":439.29,"gasTherms":250,"totalProduction":329,"selfUse":329,"trueConsumption":520,"netPosition":-191,"totalCost":218.5,"effectiveRate":0.4201923076923077,"gasKwh":7325,"totalEnergyCost":657.79,"totalEnergyKwh":7845,"billingPeriodProd":329},{"month":"2024-02","ngStartDate":"2024-02-12","ngEndDate":"2024-03-13","ngCost":299.81,"ngUsage":839,"ngExport":0,"ngCredit":762.11,"ngProd":625,"sunrunCost":144.76,"sunrunProd":660,"gasCost":253.41,"gasTherms":142,"totalProduction":633,"selfUse":633,"trueConsumption":1472,"netPosition":-839,"totalCost":444.57,"effectiveRate":0.30201766304347827,"gasKwh":4160.6,"totalEnergyCost":697.98,"totalEnergyKwh":5632.6,"billingPeriodProd":633},{"month":"2024-03","ngStartDate":"2024-03-13","ngEndDate":"2024-04-10","ngCost":104.94,"ngUsage":265,"ngExport":0,"ngCredit":657.17,"ngProd":819,"sunrunCost":148.96,"sunrunProd":865,"gasCost":35.98,"gasTherms":14,"totalProduction":862,"selfUse":862,"trueConsumption":1127,"netPosition":-265,"totalCost":253.9,"effectiveRate":0.22528837622005324,"gasKwh":410.2,"totalEnergyCost":289.88,"totalEnergyKwh":1537.2,"billingPeriodProd":862},{"month":"2024-04","ngStartDate":"2024-04-10","ngEndDate":"2024-05-10","ngCost":0,"ngUsage":0,"ngExport":692,"ngCredit":865.96,"ngProd":1188,"sunrunCost":148.96,"sunrunProd":1279,"gasCost":39.37,"gasTherms":16,"totalProduction":1217,"selfUse":525,"trueConsumption":525,"netPosition":692,"totalCost":148.96,"effectiveRate":0.28373333333333334,"gasKwh":468.8,"totalEnergyCost":188.33,"totalEnergyKwh":993.8,"billingPeriodProd":1217},{"month":"2024-05","ngStartDate":"2024-05-10","ngEndDate":"2024-06-12","ngCost":0,"ngUsage":0,"ngExport":964,"ngCredit":1161.3,"ngProd":1439,"sunrunCost":148.96,"sunrunProd":1365,"gasCost":36.63,"gasTherms":17,"totalProduction":1491,"selfUse":527,"trueConsumption":527,"netPosition":964,"totalCost":148.96,"effectiveRate":0.28265654648956356,"gasKwh":498.1,"totalEnergyCost":185.59,"totalEnergyKwh":1025.1,"billingPeriodProd":1491},{"month":"2024-06","ngStartDate":"2024-06-12","ngEndDate":"2024-07-15","ngCost":37.89,"ngUsage":57,"ngExport":0,"ngCredit":1123.41,"ngProd":1594,"sunrunCost":148.96,"sunrunProd":1427,"gasCost":65.64,"gasTherms":12,"totalProduction":1612,"selfUse":1612,"trueConsumption":1669,"netPosition":-57,"totalCost":186.85000000000002,"effectiveRate":0.11195326542840026,"gasKwh":351.6,"totalEnergyCost":252.49,"totalEnergyKwh":2020.6,"billingPeriodProd":1612},{"month":"2024-07","ngStartDate":"2024-07-15","ngEndDate":"2024-08-14","ngCost":125.29,"ngUsage":318,"ngExport":0,"ngCredit":998.12,"ngProd":1185,"sunrunCost":148.96,"sunrunProd":0,"gasCost":96.06,"gasTherms":13,"totalProduction":1263,"selfUse":1263,"trueConsumption":1581,"netPosition":-318,"totalCost":274.25,"effectiveRate":0.1734661606578115,"gasKwh":380.90000000000003,"totalEnergyCost":370.31,"totalEnergyKwh":1961.9,"billingPeriodProd":1263},{"month":"2024-08","ngStartDate":"2024-08-14","ngEndDate":"2024-09-12","ngCost":79.21,"ngUsage":193,"ngExport":0,"ngCredit":918.91,"ngProd":1131,"sunrunCost":148.96,"sunrunProd":2452,"gasCost":27.19,"gasTherms":11,"totalProduction":1179,"selfUse":1179,"trueConsumption":1372,"netPosition":-193,"totalCost":228.17000000000002,"effectiveRate":0.16630466472303207,"gasKwh":322.3,"totalEnergyCost":255.36,"totalEnergyKwh":1694.3,"billingPeriodProd":1179},{"month":"2024-09","ngStartDate":"2024-09-12","ngEndDate":"2024-10-11","ngCost":120.33,"ngUsage":324,"ngExport":0,"ngCredit":798.58,"ngProd":682,"sunrunCost":148.96,"sunrunProd":646,"gasCost":32.65,"gasTherms":15,"totalProduction":739,"selfUse":739,"trueConsumption":1063,"netPosition":-324,"totalCost":269.29,"effectiveRate":0.2533301975540922,"gasKwh":439.5,"totalEnergyCost":301.94,"totalEnergyKwh":1502.5,"billingPeriodProd":739},{"month":"2024-10","ngStartDate":"2024-10-11","ngEndDate":"2024-11-13","ngCost":168.16,"ngUsage":461,"ngExport":0,"ngCredit":630.42,"ngProd":617,"sunrunCost":148.96,"sunrunProd":578,"gasCost":27.19,"gasTherms":11,"totalProduction":644,"selfUse":644,"trueConsumption":1105,"netPosition":-461,"totalCost":317.12,"effectiveRate":0.2869864253393665,"gasKwh":322.3,"totalEnergyCost":344.31,"totalEnergyKwh":1427.3,"billingPeriodProd":644},{"month":"2024-11","ngStartDate":"2024-11-13","ngEndDate":"2024-12-13","ngCost":528.25,"ngUsage":1509,"ngExport":0,"ngCredit":102.17,"ngProd":415,"sunrunCost":148.96,"sunrunProd":419,"gasCost":35.82,"gasTherms":11,"totalProduction":438,"selfUse":438,"trueConsumption":1947,"netPosition":-1509,"totalCost":677.21,"effectiveRate":0.3478222907036467,"gasKwh":322.3,"totalEnergyCost":713.0300000000001,"totalEnergyKwh":2269.3,"billingPeriodProd":438},{"month":"2024-12","ngStartDate":"2024-12-13","ngEndDate":"2025-01-15","ngCost":931.59,"ngUsage":2692,"ngExport":0,"ngCredit":0,"ngProd":362,"sunrunCost":148.96,"sunrunProd":314,"gasCost":47.75,"gasTherms":16,"totalProduction":379,"selfUse":379,"trueConsumption":3071,"netPosition":-2692,"totalCost":1080.55,"effectiveRate":0.35185607294041027,"gasKwh":468.8,"totalEnergyCost":1128.3,"totalEnergyKwh":3539.8,"billingPeriodProd":379},{"month":"2025-01","ngStartDate":"2025-01-15","ngEndDate":"2025-02-13","ngCost":859.55,"ngUsage":2530,"ngExport":0,"ngCredit":0,"ngProd":300,"sunrunCost":148.96,"sunrunProd":342,"gasCost":56.64,"gasTherms":20,"totalProduction":321,"selfUse":321,"trueConsumption":2851,"netPosition":-2530,"totalCost":1008.51,"effectiveRate":0.35373903893370745,"gasKwh":586,"totalEnergyCost":1065.15,"totalEnergyKwh":3437,"billingPeriodProd":321},{"month":"2025-02","ngStartDate":"2025-02-13","ngEndDate":"2025-03-15","ngCost":347.19,"ngUsage":1471,"ngExport":0,"ngCredit":512.36,"ngProd":722,"sunrunCost":148.96,"sunrunProd":675,"gasCost":57.07,"gasTherms":19,"totalProduction":722,"selfUse":722,"trueConsumption":2193,"netPosition":-1471,"totalCost":496.15,"effectiveRate":0.22624259005927952,"gasKwh":556.7,"totalEnergyCost":553.22,"totalEnergyKwh":2749.7,"billingPeriodProd":722},{"month":"2025-03","ngStartDate":"2025-03-15","ngEndDate":"2025-04-11","ngCost":26,"ngUsage":280,"ngExport":0,"ngCredit":486.36,"ngProd":740,"sunrunCost":153.28,"sunrunProd":826,"gasCost":52.39,"gasTherms":19,"totalProduction":772,"selfUse":772,"trueConsumption":1052,"netPosition":-280,"totalCost":179.28,"effectiveRate":0.17041825095057034,"gasKwh":556.7,"totalEnergyCost":231.67000000000002,"totalEnergyKwh":1608.7,"billingPeriodProd":772},{"month":"2025-04","ngStartDate":"2025-04-11","ngEndDate":"2025-05-15","ngCost":0,"ngUsage":0,"ngExport":422,"ngCredit":598.66,"ngProd":1374,"sunrunCost":153.28,"sunrunProd":1239,"gasCost":54.5,"gasTherms":20,"totalProduction":1424,"selfUse":1002,"trueConsumption":1002,"netPosition":422,"totalCost":153.28,"effectiveRate":0.15297405189620758,"gasKwh":586,"totalEnergyCost":207.78,"totalEnergyKwh":1588,"billingPeriodProd":1424},{"month":"2025-05","ngStartDate":"2025-05-15","ngEndDate":"2025-06-16","ngCost":0,"ngUsage":0,"ngExport":87,"ngCredit":612.27,"ngProd":1224,"sunrunCost":153.28,"sunrunProd":1178,"gasCost":41.94,"gasTherms":13,"totalProduction":1272,"selfUse":1185,"trueConsumption":1185,"netPosition":87,"totalCost":153.28,"effectiveRate":0.12935021097046415,"gasKwh":380.90000000000003,"totalEnergyCost":195.22,"totalEnergyKwh":1565.9,"billingPeriodProd":1272},{"month":"2025-06","ngStartDate":"2025-06-16","ngEndDate":"2025-07-16","ngCost":34.78,"ngUsage":92,"ngExport":0,"ngCredit":577.49,"ngProd":1335,"sunrunCost":153.28,"sunrunProd":1423,"gasCost":41.94,"gasTherms":13,"totalProduction":1383,"selfUse":1383,"trueConsumption":1475,"netPosition":-92,"totalCost":188.06,"effectiveRate":0.12749830508474577,"gasKwh":380.90000000000003,"totalEnergyCost":230,"totalEnergyKwh":1855.9,"billingPeriodProd":1383},{"month":"2025-07","ngStartDate":"2025-07-16","ngEndDate":"2025-08-14","ngCost":16.43,"ngUsage":13,"ngExport":0,"ngCredit":561.06,"ngProd":1414,"sunrunCost":153.28,"sunrunProd":1496,"gasCost":44.23,"gasTherms":14,"totalProduction":1456,"selfUse":1456,"trueConsumption":1469,"netPosition":-13,"totalCost":169.71,"effectiveRate":0.11552756977535739,"gasKwh":410.2,"totalEnergyCost":213.94,"totalEnergyKwh":1879.2,"billingPeriodProd":1456},{"month":"2025-08","ngStartDate":"2025-08-14","ngEndDate":"2025-09-12","ngCost":51.63,"ngUsage":164,"ngExport":0,"ngCredit":509.43,"ngProd":1102,"sunrunCost":153.28,"sunrunProd":1168,"gasCost":46.53,"gasTherms":15,"totalProduction":1133,"selfUse":1133,"trueConsumption":1297,"netPosition":-164,"totalCost":204.91,"effectiveRate":0.15798766383962992,"gasKwh":439.5,"totalEnergyCost":251.44,"totalEnergyKwh":1736.5,"billingPeriodProd":1133},{"month":"2025-09","ngStartDate":"2025-09-12","ngEndDate":"2025-10-14","ngCost":121.27,"ngUsage":455,"ngExport":0,"ngCredit":388.16,"ngProd":800,"sunrunCost":153.28,"sunrunProd":703,"gasCost":60.25,"gasTherms":21,"totalProduction":846,"selfUse":846,"trueConsumption":1301,"netPosition":-455,"totalCost":274.55,"effectiveRate":0.21102997694081477,"gasKwh":615.3000000000001,"totalEnergyCost":334.8,"totalEnergyKwh":1916.3000000000002,"billingPeriodProd":846},{"month":"2025-10","ngStartDate":"2025-10-14","ngEndDate":"2025-11-12","ngCost":124.85,"ngUsage":499,"ngExport":0,"ngCredit":263.31,"ngProd":441,"sunrunCost":153.28,"sunrunProd":479,"gasCost":55.01,"gasTherms":20,"totalProduction":441,"selfUse":441,"trueConsumption":940,"netPosition":-499,"totalCost":278.13,"effectiveRate":0.29588297872340424,"gasKwh":586,"totalEnergyCost":333.14,"totalEnergyKwh":1526,"billingPeriodProd":441},{"month":"2025-11","ngStartDate":null,"ngEndDate":null,"ngCost":0,"ngUsage":0,"ngExport":0,"ngCredit":0,"ngProd":0,"sunrunCost":0,"sunrunProd":0,"gasCost":0,"gasTherms":22,"totalProduction":405,"selfUse":405,"trueConsumption":405,"netPosition":0,"totalCost":0,"effectiveRate":0,"gasKwh":644.6,"totalEnergyCost":0,"totalEnergyKwh":1049.6,"billingPeriodProd":405}];
         let currentData = [...allData];
         const charts = {};
         let isAreaChart = false;
@@ -216,8 +215,9 @@
                 gasCost: data.map(d => d.gasCost),
                 gasKwh: data.map(d => d.gasKwh),
                 totalEnergyCosts: data.map(d => d.totalEnergyCost),
-                ngProd: data.map(d => d.ngProd),     // Added
-                sunrunProd: data.map(d => d.sunrunProd) // Added
+                ngProd: data.map(d => d.ngProd),
+                sunrunProd: data.map(d => d.sunrunProd),
+                billingPeriodProd: data.map(d => d.billingPeriodProd)
             };
         }
 
@@ -225,7 +225,7 @@
             const d = getChartData(currentData);
 
             // 1. Total Cost Chart
-            if (charts.totalCost) charts.totalCost.destroy();
+            charts.totalCost?.destroy();
             charts.totalCost = new Chart(document.getElementById('totalCostChart'), {
                 type: 'bar',
                 data: {
@@ -241,7 +241,7 @@
             });
 
             // 2. Total Energy Chart
-            if (charts.totalEnergy) charts.totalEnergy.destroy();
+            charts.totalEnergy?.destroy();
             charts.totalEnergy = new Chart(document.getElementById('totalEnergyChart'), {
                 type: 'bar',
                 data: {
@@ -258,7 +258,7 @@
             renderConsumptionChart(d);
 
             // 4. Net Zero Chart
-            if (charts.netZero) charts.netZero.destroy();
+            charts.netZero?.destroy();
             charts.netZero = new Chart(document.getElementById('netZeroChart'), {
                 type: 'line',
                 data: {
@@ -272,7 +272,7 @@
             });
 
             // 5. Credit Chart
-            if (charts.credit) charts.credit.destroy();
+            charts.credit?.destroy();
             charts.credit = new Chart(document.getElementById('creditChart'), {
                 type: 'line',
                 data: {
@@ -285,7 +285,7 @@
             });
 
             // 6. Cost Chart
-            if (charts.cost) charts.cost.destroy();
+            charts.cost?.destroy();
             charts.cost = new Chart(document.getElementById('costChart'), {
                 type: 'bar',
                 data: {
@@ -300,7 +300,7 @@
             });
 
             // 7. Rate Chart
-            if (charts.rate) charts.rate.destroy();
+            charts.rate?.destroy();
             charts.rate = new Chart(document.getElementById('rateChart'), {
                 type: 'line',
                 data: {
@@ -318,13 +318,13 @@
             });
 
             // 8. Utilization Chart
-            if (charts.utilization) charts.utilization.destroy();
+            charts.utilization?.destroy();
             charts.utilization = new Chart(document.getElementById('utilizationChart'), {
                 type: 'bar',
                 data: {
                     labels: d.labels,
                     datasets: [
-                        { label: 'Used at Home', data: d.selfUse, backgroundColor: '#2ecc71', stack: 'Stack 0' },
+                        { label: 'Used at Home', data: d.selfUse, backgroundColor: '#f1c40f', stack: 'Stack 0' },
                         { label: 'Sent to Grid', data: d.ngExport, backgroundColor: '#95a5a6', stack: 'Stack 0' }
                     ]
                 },
@@ -332,14 +332,14 @@
             });
 
             // 9. Production Comparison Chart
-            if (charts.productionComparison) charts.productionComparison.destroy();
+            charts.productionComparison?.destroy();
             charts.productionComparison = new Chart(document.getElementById('productionComparisonChart'), {
                 type: 'bar',
                 data: {
                     labels: d.labels,
                     datasets: [
-                        { label: 'Sunrun Reported', data: d.sunrunProd, backgroundColor: '#f1c40f' },
-                        { label: 'National Grid Credited', data: d.ngProd, backgroundColor: '#3498db' }
+                        { label: 'National Grid Credited', data: d.ngProd, backgroundColor: '#3498db' },
+                        { label: 'Sunrun Actual (Billing Period)', data: d.billingPeriodProd, backgroundColor: '#f1c40f' }
                     ]
                 },
                 options: kwhOptions
@@ -347,30 +347,25 @@
         }
 
         function renderConsumptionChart(d) {
-            if (charts.consumption) charts.consumption.destroy();
-            
-            const type = isAreaChart ? 'line' : 'bar';
-            const fill = isAreaChart ? true : false;
+            charts.consumption?.destroy();
 
             charts.consumption = new Chart(document.getElementById('consumptionChart').getContext('2d'), {
-                type: type,
+                type: 'bar',
                 data: {
                     labels: d.labels,
                     datasets: [
                         {
                             label: 'Imported from Grid',
                             data: d.ngUsage,
-                            backgroundColor: isAreaChart ? 'rgba(52, 152, 219, 0.5)' : '#3498db',
+                            backgroundColor: '#3498db',
                             borderColor: '#3498db',
-                            fill: fill,
                             stack: 'Stack 0'
                         },
                         {
                             label: 'Solar Self-Use',
                             data: d.selfUse,
-                            backgroundColor: isAreaChart ? 'rgba(46, 204, 113, 0.5)' : '#2ecc71',
-                            borderColor: '#2ecc71',
-                            fill: fill,
+                            backgroundColor: '#f1c40f',
+                            borderColor: '#f1c40f',
                             stack: 'Stack 0'
                         },
                         {
@@ -411,14 +406,6 @@
                 renderCharts();
             });
         }
-
-        // Toggle Handler
-        document.getElementById('toggleConsumptionBtn').addEventListener('click', function() {
-            isAreaChart = !isAreaChart;
-            this.textContent = isAreaChart ? 'Switch to Bar Chart' : 'Switch to Area Chart';
-            const d = getChartData(currentData);
-            renderConsumptionChart(d);
-        });
 
         // Start
         initYearSelect();

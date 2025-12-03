@@ -28,6 +28,8 @@ export default class EnergyAnalyzer {
         if (!this.monthlyData[key]) {
             this.monthlyData[key] = {
                 month: key,
+                ngStartDate: null,
+                ngEndDate: null,
                 ngCost: 0,
                 ngUsage: 0,
                 ngExport: 0,
@@ -50,6 +52,12 @@ export default class EnergyAnalyzer {
             if (data.credit > 0) {
                 bucket.ngCredit = data.credit;
             }
+            if (data.startDate) {
+                bucket.ngStartDate = data.startDate;
+            }
+            if (data.endDate) {
+                bucket.ngEndDate = data.endDate;
+            }
         } else if (data.type === 'Sunrun') {
             bucket.sunrunCost += data.cost;
             bucket.sunrunProd += data.production;
@@ -57,6 +65,15 @@ export default class EnergyAnalyzer {
             bucket.gasCost += data.cost;
             bucket.gasTherms += data.therms;
         }
+    }
+
+    /**
+     * Sets the daily solar production data.
+     *
+     * @param {Object} dailyData - Map of date (YYYY-MM-DD) -> production (kWh)
+     */
+    setDailySolarData(dailyData) {
+        this.dailySolarData = dailyData;
     }
 
     /**
@@ -75,9 +92,46 @@ export default class EnergyAnalyzer {
             // Priority 2: Sunrun Inverter (sunrunProd). Use this if NG data is missing (e.g. older bills).
             // Logic: If ngProd is recorded (>0), use it. Otherwise fallback to Sunrun.
             // Edge Case: If both are 0 (e.g. snow), it stays 0.
-            const totalProduction = d.ngProd > 0 ? d.ngProd : d.sunrunProd;
 
-            // True Consumption Calculation
+            // Calculate Production for the Exact Billing Period
+            let billingPeriodProd = 0;
+            if (this.dailySolarData) {
+                if (d.ngStartDate && d.ngEndDate) {
+                    // Calculate shifted dates (-1 day offset) to align with NG billing cycle
+                    const startDate = new Date(d.ngStartDate);
+                    startDate.setDate(startDate.getDate() - 1);
+                    const shiftedStart = startDate.toISOString().split('T')[0];
+
+                    const endDate = new Date(d.ngEndDate);
+                    endDate.setDate(endDate.getDate() - 1);
+                    const shiftedEnd = endDate.toISOString().split('T')[0];
+
+                    // Sum daily production between shifted start and end date (inclusive)
+                    Object.keys(this.dailySolarData).forEach(date => {
+                        if (date >= shiftedStart && date <= shiftedEnd) {
+                            billingPeriodProd += this.dailySolarData[date];
+                        }
+                    });
+                } else {
+                    // Fallback: Sum up all daily production for this calendar month (m is YYYY-MM)
+                    Object.keys(this.dailySolarData).forEach(date => {
+                        if (date.startsWith(m)) {
+                            billingPeriodProd += this.dailySolarData[date];
+                        }
+                    });
+                }
+                billingPeriodProd = Math.round(billingPeriodProd); // Round to whole number
+            }
+
+            // Determine Total Production (Prioritize exact billing period data, then NG credit, then Sunrun bill)
+            let totalProduction = 0;
+            if (billingPeriodProd > 0) {
+                totalProduction = billingPeriodProd;
+            } else if (d.ngProd > 0) {
+                totalProduction = d.ngProd;
+            } else {
+                totalProduction = d.sunrunProd;
+            }
             // Consumption = Production - Net Export + Net Import
             // Self Use = Production - Net Export (clamped to 0)
             const selfUse = Math.max(0, totalProduction - d.ngExport);
@@ -105,7 +159,8 @@ export default class EnergyAnalyzer {
                 effectiveRate,
                 gasKwh,
                 totalEnergyCost,
-                totalEnergyKwh
+                totalEnergyKwh,
+                billingPeriodProd
             };
         });
     }

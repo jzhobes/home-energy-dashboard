@@ -14,14 +14,28 @@ export default class NationalGridParser {
             const data = await parser.getText();
             const text = data.text;
 
-            // 1. Extract Date
-            const dateMatch = text.match(/BILLING PERIOD[\s\S]*?to\s+([A-Za-z]{3}\s+\d{1,2},?\s+\d{4})/i);
+            // Extract Date
+            // Regex to match "BILLING PERIOD ... Mon DD, YYYY to Mon DD, YYYY"
+            // Handles cases where "PAGE X of Y" or newlines appear between BILLING PERIOD and dates
+            const dateMatch = text.match(/BILLING PERIOD[\s\S]*?([A-Za-z]{3}\s+\d{1,2},?\s+\d{4})\s+to\s+([A-Za-z]{3}\s+\d{1,2},?\s+\d{4})/i);
             let dateStr = null;
+            let startDateStr = null;
+            let endDateStr = null;
+
             if (dateMatch) {
-                dateStr = new Date(dateMatch[1]).toISOString().split('T')[0];
+                startDateStr = new Date(dateMatch[1]).toISOString().split('T')[0];
+                endDateStr = new Date(dateMatch[2]).toISOString().split('T')[0];
+                dateStr = endDateStr; // Use end date as the primary date for the bill
+            } else {
+                // Fallback for older formats or if regex fails (try just the 'to' date)
+                const fallbackMatch = text.match(/BILLING PERIOD[\s\S]*?to\s+([A-Za-z]{3}\s+\d{1,2},?\s+\d{4})/i);
+                if (fallbackMatch) {
+                    dateStr = new Date(fallbackMatch[1]).toISOString().split('T')[0];
+                    endDateStr = dateStr;
+                }
             }
 
-            // 2. Extract Cost
+            // Extract Cost
             let cost = 0;
             const currentChargesMatch = text.match(/Current\s+Charges\s*\+\s*([\d,]+\.\d{2})/i);
             if (currentChargesMatch) {
@@ -33,17 +47,17 @@ export default class NationalGridParser {
                 }
             }
 
-            // 3. Extract Usage Data
+            // Extract Usage Data
             let netUsage = 0;
             let genUsage = 0;
 
-            // A. Extract Net Usage (Delivery Services)
+            // Extract Net Usage (Delivery Services)
             const netUsageMatch = text.match(/Delivery\s+Services[\s\S]*?Total\s+Usage[\s\S]*?([-\d,]+)\s*kWh/i);
             if (netUsageMatch) {
                 netUsage = parseFloat(netUsageMatch[1].replace(/,/g, ''));
             }
 
-            // B. Extract Generation Usage (SMART Program)
+            // Extract Generation Usage (SMART Program)
             const genUsageMatch = text.match(/MA\s+SMART\s+Incentive\s+Program[\s\S]*?Energy[\s\S]*?([-\d,]+)\s*kWh/i);
             if (genUsageMatch) {
                 genUsage = Math.abs(parseFloat(genUsageMatch[1].replace(/,/g, ''))); // Store as positive production
@@ -53,7 +67,7 @@ export default class NationalGridParser {
             const usage = netUsage > 0 ? netUsage : 0; // Import
             const exported = netUsage < 0 ? Math.abs(netUsage) : 0; // Export
 
-            // 4. Extract Credit Balance
+            // Extract Credit Balance
             let credit = 0;
             const creditMatch = text.match(/Credit\s+Balance\s*-\$\s*([\d,]+\.\d{2})/i);
             if (creditMatch) {
@@ -62,8 +76,10 @@ export default class NationalGridParser {
 
             return {
                 date: dateStr,
-                usage,      // Imported from Grid
-                exported,   // Sent to Grid (Net)
+                startDate: startDateStr,
+                endDate: endDateStr,
+                usage, // Imported from Grid
+                exported, // Sent to Grid (Net)
                 production: genUsage, // Total Solar Generation (from NG meter)
                 cost,
                 credit,
