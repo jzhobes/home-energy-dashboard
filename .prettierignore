@@ -1,0 +1,7 @@
+node_modules
+package-lock.json
+*.json
+.env
+favicon.png
+index.html
+dashboard_template.html
