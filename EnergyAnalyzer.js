@@ -124,7 +124,7 @@ export default class EnergyAnalyzer {
       }
 
       // Determine Total Production (Prioritize exact billing period data, then NG credit, then Sunrun bill)
-      let totalProduction = 0;
+      let totalProduction;
       if (billingPeriodProd > 0) {
         totalProduction = billingPeriodProd;
       } else if (d.ngProd > 0) {

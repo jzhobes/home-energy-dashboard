@@ -12,7 +12,7 @@ export default class SunrunClient {
       creds = JSON.parse(SUNRUN_CREDENTIALS);
     } catch (e) {
       console.error('Error parsing SUNRUN_CREDENTIALS:', e);
-      throw new Error('Failed to parse SUNRUN_CREDENTIALS JSON');
+      throw new Error('Failed to parse SUNRUN_CREDENTIALS JSON', { cause: e });
     }
 
     this.authToken = creds.auth_token;
